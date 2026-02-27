@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00f3df0a5b4b3084b810b3694d58eca1, type: 3}
+  m_Name: Level_2
+  m_EditorClassIdentifier: Assembly-CSharp::LevelData
+  letters: WIRED
+  gridWidth: 6
+  gridHeight: 10
+  wordPlacements:
+  - word: WIRED
+    row: 2
+    startCol: 1
+    isHorizontal: 1
+  - word: WEIRD
+    row: 2
+    startCol: 1
+    isHorizontal: 0
+  - word: WIDER
+    row: 4
+    startCol: 0
+    isHorizontal: 1
+  - word: DIRE
+    row: 6
+    startCol: 1
+    isHorizontal: 1
+  - word: WIDE
+    row: 0
+    startCol: 5
+    isHorizontal: 0
+  - word: RIDE
+    row: 6
+    startCol: 3
+    isHorizontal: 0
+  - word: WIRE
+    row: 9
+    startCol: 0
+    isHorizontal: 1
+  - word: DEW
+    row: 0
+    startCol: 3
+    isHorizontal: 1
+  - word: DIE
+    row: 8
+    startCol: 3
+    isHorizontal: 1
+  - word: RED
+    row: 7
+    startCol: 5
+    isHorizontal: 0
+  extraWords:
+  - DREW
+  - RID
+  - WED
+  backgroundSprite: {fileID: 0}
+  backgroundColor: {r: 0.18967953, g: 0.18559098, b: 0.30338594, a: 1}

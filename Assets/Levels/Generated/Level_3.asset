@@ -1,0 +1,64 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00f3df0a5b4b3084b810b3694d58eca1, type: 3}
+  m_Name: Level_3
+  m_EditorClassIdentifier: Assembly-CSharp::LevelData
+  letters: CREAM
+  gridWidth: 10
+  gridHeight: 5
+  wordPlacements:
+  - word: CREAM
+    row: 0
+    startCol: 6
+    isHorizontal: 0
+  - word: ACME
+    row: 0
+    startCol: 5
+    isHorizontal: 1
+  - word: ACRE
+    row: 3
+    startCol: 6
+    isHorizontal: 1
+  - word: CAME
+    row: 2
+    startCol: 3
+    isHorizontal: 1
+  - word: RACE
+    row: 0
+    startCol: 3
+    isHorizontal: 0
+  - word: CARE
+    row: 3
+    startCol: 0
+    isHorizontal: 1
+  - word: ACE
+    row: 1
+    startCol: 9
+    isHorizontal: 0
+  - word: ARM
+    row: 4
+    startCol: 4
+    isHorizontal: 1
+  - word: CAR
+    row: 0
+    startCol: 1
+    isHorizontal: 1
+  - word: EAR
+    row: 2
+    startCol: 1
+    isHorizontal: 0
+  extraWords:
+  - MAR
+  - ERA
+  - RAM
+  backgroundSprite: {fileID: 0}
+  backgroundColor: {r: 0.19016297, g: 0.14761603, b: 0.20000306, a: 1}

@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00f3df0a5b4b3084b810b3694d58eca1, type: 3}
+  m_Name: Level_3
+  m_EditorClassIdentifier: Assembly-CSharp::LevelData
+  letters: LEMON
+  gridWidth: 5
+  gridHeight: 4
+  wordPlacements:
+  - word: LEMON
+    row: 0
+    startCol: 0
+    isHorizontal: 1
+  - word: MOLE
+    row: 0
+    startCol: 2
+    isHorizontal: 0
+  - word: NOEL
+    row: 0
+    startCol: 4
+    isHorizontal: 0
+  extraWords:
+  - MELON
+  - LONE
+  - OMEN
+  - ONE
+  - MEN
+  - ELM
+  backgroundSprite: {fileID: 0}
+  backgroundColor: {r: 0.1, g: 0.2, b: 0.15, a: 1}

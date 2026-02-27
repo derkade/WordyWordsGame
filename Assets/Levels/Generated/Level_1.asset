@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 00f3df0a5b4b3084b810b3694d58eca1, type: 3}
+  m_Name: Level_1
+  m_EditorClassIdentifier: Assembly-CSharp::LevelData
+  letters: TIRED
+  gridWidth: 10
+  gridHeight: 9
+  wordPlacements:
+  - word: TIRED
+    row: 1
+    startCol: 5
+    isHorizontal: 0
+  - word: TRIED
+    row: 1
+    startCol: 5
+    isHorizontal: 1
+  - word: DIET
+    row: 5
+    startCol: 5
+    isHorizontal: 1
+  - word: DIRE
+    row: 1
+    startCol: 9
+    isHorizontal: 0
+  - word: DIRT
+    row: 0
+    startCol: 7
+    isHorizontal: 0
+  - word: RIDE
+    row: 4
+    startCol: 2
+    isHorizontal: 1
+  - word: EDIT
+    row: 2
+    startCol: 3
+    isHorizontal: 0
+  - word: TIDE
+    row: 2
+    startCol: 0
+    isHorizontal: 1
+  - word: TIED
+    row: 2
+    startCol: 0
+    isHorizontal: 0
+  - word: TIER
+    row: 5
+    startCol: 8
+    isHorizontal: 0
+  extraWords:
+  - TIRE
+  - RED
+  - DIE
+  - TIE
+  - RID
+  backgroundSprite: {fileID: 0}
+  backgroundColor: {r: 0.16985562, g: 0.19099754, b: 0.34368446, a: 1}
