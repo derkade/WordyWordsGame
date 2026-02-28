@@ -7,7 +7,9 @@ using TMPro;
 public class GameManager : MonoBehaviour
 {
     [Header("Level Data")]
-    [Tooltip("Array of LevelData assets defining each puzzle")]
+    [Tooltip("Generate random puzzles instead of using pre-baked levels")]
+    [SerializeField] private bool useRandomLevels = true;
+    [Tooltip("Array of LevelData assets defining each puzzle (used when random is off)")]
     [SerializeField] private LevelData[] levels;
     [Tooltip("Which level to load when the game starts")]
     [SerializeField] private int startLevelIndex = 0;
@@ -31,12 +33,28 @@ public class GameManager : MonoBehaviour
     [SerializeField] private TMP_Text currentWordText;
     [Tooltip("Displays the count of bonus words found")]
     [SerializeField] private TMP_Text extraWordsCountText;
-    [Tooltip("Button that shuffles the letter wheel positions")]
-    [SerializeField] private Button shuffleButton;
     [Tooltip("Button that reveals a random cell (costs coins)")]
     [SerializeField] private Button hintButton;
     [Tooltip("Background image that can change per level")]
     [SerializeField] private Image backgroundImage;
+
+    [Header("Word Bank")]
+    [Tooltip("Button to open the Word Bank overlay")]
+    [SerializeField] private Button wordBankButton;
+    [Tooltip("Overlay panel showing found bonus words")]
+    [SerializeField] private GameObject wordBankPanel;
+    [Tooltip("CanvasGroup for fading the Word Bank panel")]
+    [SerializeField] private CanvasGroup wordBankCG;
+    [Tooltip("Text displaying clickable bonus words")]
+    [SerializeField] private TMP_Text wordBankText;
+    [Tooltip("Button to close the Word Bank overlay")]
+    [SerializeField] private Button wordBankCloseButton;
+    [Tooltip("Click handler on the Word Bank text for detecting word taps")]
+    [SerializeField] private WordBankClickHandler wordBankClickHandler;
+
+    [Header("Definition Panel")]
+    [Tooltip("Overlay panel showing word definitions")]
+    [SerializeField] private DefinitionPanel definitionPanel;
 
     [Header("Level Complete")]
     [Tooltip("Panel shown when all grid words are found")]
@@ -65,11 +83,19 @@ public class GameManager : MonoBehaviour
     private int currentLevelIndex;
     private int coins;
     private int extraWordsFound;
+    private RuntimeLevelGenerator runtimeGenerator;
+    private List<string> foundExtraWords = new List<string>();
 
     private void Start()
     {
         coins = 100;
         currentLevelIndex = startLevelIndex;
+
+        if (useRandomLevels)
+        {
+            runtimeGenerator = new RuntimeLevelGenerator();
+            runtimeGenerator.LoadDictionary();
+        }
 
         // Subscribe to swipe events
         swipeController.OnGridWordFound += HandleGridWordFound;
@@ -78,10 +104,19 @@ public class GameManager : MonoBehaviour
         swipeController.OnAlreadyFound += HandleAlreadyFound;
 
         // Button listeners
-        shuffleButton.onClick.AddListener(OnShuffleClicked);
         hintButton.onClick.AddListener(OnHintClicked);
         if (nextLevelButton != null)
             nextLevelButton.onClick.AddListener(OnNextLevelClicked);
+
+        // Word Bank buttons
+        if (wordBankButton != null)
+            wordBankButton.onClick.AddListener(OnWordBankClicked);
+        if (wordBankCloseButton != null)
+            wordBankCloseButton.onClick.AddListener(OnWordBankClosed);
+        if (wordBankClickHandler != null)
+            wordBankClickHandler.OnWordClicked += OnWordBankWordClicked;
+        if (wordBankPanel != null)
+            wordBankPanel.SetActive(false);
 
         // Hide level complete panel
         if (levelCompletePanel != null)
@@ -100,6 +135,8 @@ public class GameManager : MonoBehaviour
             swipeController.OnInvalidWord -= HandleInvalidWord;
             swipeController.OnAlreadyFound -= HandleAlreadyFound;
         }
+        if (wordBankClickHandler != null)
+            wordBankClickHandler.OnWordClicked -= OnWordBankWordClicked;
     }
 
     private void Update()
@@ -114,15 +151,32 @@ public class GameManager : MonoBehaviour
 
     public void LoadLevel(int index)
     {
-        if (levels == null || levels.Length == 0)
+        LevelData level;
+
+        if (useRandomLevels && runtimeGenerator != null && runtimeGenerator.IsReady)
         {
-            Debug.LogError("No levels assigned to GameManager!");
-            return;
+            currentLevelIndex = index;
+            level = runtimeGenerator.Generate();
+            if (level == null)
+            {
+                Debug.LogError("Random level generation failed!");
+                return;
+            }
+        }
+        else
+        {
+            if (levels == null || levels.Length == 0)
+            {
+                Debug.LogError("No levels assigned to GameManager!");
+                return;
+            }
+
+            currentLevelIndex = Mathf.Clamp(index, 0, levels.Length - 1);
+            level = levels[currentLevelIndex];
         }
 
-        currentLevelIndex = Mathf.Clamp(index, 0, levels.Length - 1);
-        LevelData level = levels[currentLevelIndex];
         extraWordsFound = 0;
+        foundExtraWords.Clear();
 
         // Set background
         if (backgroundImage != null)
@@ -142,7 +196,7 @@ public class GameManager : MonoBehaviour
         swipeController.SetWordSets(level.GetGridWordSet(), level.GetExtraWordSet());
 
         // Update UI
-        levelText.text = $"Level {currentLevelIndex + 1}";
+        levelText.text = useRandomLevels ? $"Puzzle {currentLevelIndex + 1}" : $"Level {currentLevelIndex + 1}";
         if (extraWordsCountText != null)
         {
             extraWordsCountText.text = "";
@@ -178,6 +232,7 @@ public class GameManager : MonoBehaviour
     private void HandleExtraWordFound(string word)
     {
         extraWordsFound++;
+        foundExtraWords.Add(word);
         AddCoins(coinsPerExtraWord);
 
         if (bonusWordParticles != null && extraWordsCountText != null)
@@ -227,11 +282,6 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    private void OnShuffleClicked()
-    {
-        letterWheel.ShuffleTiles();
-    }
-
     private void OnHintClicked()
     {
         if (coins < hintCost)
@@ -256,11 +306,74 @@ public class GameManager : MonoBehaviour
 
     private void OnNextLevelClicked()
     {
-        int nextIndex = currentLevelIndex + 1;
-        if (nextIndex >= levels.Length)
-            nextIndex = 0; // Loop back
+        if (useRandomLevels)
+        {
+            LoadLevel(currentLevelIndex + 1);
+        }
+        else
+        {
+            int nextIndex = currentLevelIndex + 1;
+            if (nextIndex >= levels.Length)
+                nextIndex = 0; // Loop back
+            LoadLevel(nextIndex);
+        }
+    }
 
-        LoadLevel(nextIndex);
+    private void OnWordBankWordClicked(string word)
+    {
+        if (definitionPanel != null)
+            definitionPanel.Show(word);
+    }
+
+    private void OnWordBankClicked()
+    {
+        if (wordBankPanel == null) return;
+
+        if (wordBankText != null)
+        {
+            if (foundExtraWords.Count > 0)
+            {
+                var sb = new System.Text.StringBuilder();
+                for (int i = 0; i < foundExtraWords.Count; i++)
+                {
+                    string w = foundExtraWords[i];
+                    if (i > 0) sb.Append(",  ");
+                    sb.Append($"<link=\"{w}\"><u><color=#FFD080>{w}</color></u></link>");
+                }
+                wordBankText.text = sb.ToString();
+            }
+            else
+            {
+                wordBankText.text = "No bonus words found yet.";
+            }
+        }
+
+        wordBankPanel.SetActive(true);
+        wordBankPanel.transform.SetAsLastSibling();
+        if (wordBankCG != null)
+        {
+            wordBankCG.alpha = 0f;
+            wordBankCG.interactable = true;
+            wordBankCG.blocksRaycasts = true;
+            StartCoroutine(TweenHelper.FadeTo(wordBankCG, 1f, 0.25f));
+        }
+    }
+
+    private void OnWordBankClosed()
+    {
+        if (wordBankPanel == null) return;
+        StartCoroutine(HideWordBank());
+    }
+
+    private IEnumerator HideWordBank()
+    {
+        if (wordBankCG != null)
+        {
+            yield return TweenHelper.FadeTo(wordBankCG, 0f, 0.2f);
+            wordBankCG.interactable = false;
+            wordBankCG.blocksRaycasts = false;
+        }
+        wordBankPanel.SetActive(false);
     }
 
     private IEnumerator ShowLevelComplete()

@@ -91,8 +91,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::LetterTile
   background: {fileID: 0}
   letterText: {fileID: 0}
-  normalColor: {r: 0.9, g: 0.85, b: 0.7, a: 1}
+  normalColor: {r: 0, g: 0, b: 0, a: 0}
   selectedColor: {r: 0.4, g: 0.7, b: 1, a: 1}
+  letterColor: {r: 0.28, g: 0.28, b: 0.33, a: 1}
 --- !u!1 &2786182205048735255
 GameObject:
   m_ObjectHideFlags: 0
@@ -191,7 +192,7 @@ MonoBehaviour:
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
   m_fontSizeMax: 72
-  m_fontStyle: 0
+  m_fontStyle: 1
   m_HorizontalAlignment: 2
   m_VerticalAlignment: 512
   m_textAlignment: 65535

@@ -1,201 +1,89 @@
 using System.Collections.Generic;
 using System.Linq;
-using UnityEditor;
 using UnityEngine;
 
-public class WordLevelGenerator : EditorWindow
+/// <summary>
+/// Generates random LevelData puzzles at runtime.
+/// Pure-logic extraction from the editor-only WordLevelGenerator.
+/// </summary>
+public class RuntimeLevelGenerator
 {
-    private int levelCount = 3;
-    private int seedMinLength = 5;
-    private int seedMaxLength = 7;
-    private int minSubWords = 12;
-    private int targetGridWords = 10;
-    private string outputFolder = "Assets/Levels/Generated";
-    private int maxGlobalRetries = 200;
-    private List<Sprite> backgroundSprites = new List<Sprite>();
+    public int SeedMinLength { get; set; } = 5;
+    public int SeedMaxLength { get; set; } = 7;
+    public int MinSubWords { get; set; } = 6;
+    public int TargetGridWords { get; set; } = 10;
+    public int MaxRetries { get; set; } = 200;
 
-    private List<string> dictionary;
+    private List<string> commonWords;   // Common words used for seeds & grid placement
+    private HashSet<string> fullDictionary; // Full dictionary used for bonus/extra words
 
-    [MenuItem("Tools/WordyWords/Level Generator")]
-    public static void ShowWindow()
+    public void LoadDictionary()
     {
-        GetWindow<WordLevelGenerator>("Level Generator");
-    }
+        commonWords = new List<string>();
+        fullDictionary = new HashSet<string>();
 
-    [MenuItem("Tools/WordyWords/Auto-Generate 3 Levels")]
-    public static void AutoGenerate()
-    {
-        var gen = CreateInstance<WordLevelGenerator>();
-        gen.levelCount = 3;
-        gen.GenerateLevels();
-        DestroyImmediate(gen);
-    }
-
-    private void OnGUI()
-    {
-        GUILayout.Label("WordyWords Level Generator", EditorStyles.boldLabel);
-        EditorGUILayout.Space();
-
-        levelCount = EditorGUILayout.IntSlider("Level Count", levelCount, 1, 20);
-        seedMinLength = EditorGUILayout.IntSlider("Seed Min Length", seedMinLength, 4, 6);
-        seedMaxLength = EditorGUILayout.IntSlider("Seed Max Length", seedMaxLength, 5, 8);
-        minSubWords = EditorGUILayout.IntSlider("Min Sub-Words Required", minSubWords, 8, 25);
-        targetGridWords = EditorGUILayout.IntSlider("Target Grid Words", targetGridWords, 6, 14);
-        outputFolder = EditorGUILayout.TextField("Output Folder", outputFolder);
-        maxGlobalRetries = EditorGUILayout.IntSlider("Max Retries", maxGlobalRetries, 50, 500);
-
-        EditorGUILayout.Space();
-        GUILayout.Label("Background Sprites", EditorStyles.boldLabel);
-
-        int newCount = EditorGUILayout.IntField("Count", backgroundSprites.Count);
-        while (newCount > backgroundSprites.Count) backgroundSprites.Add(null);
-        while (newCount < backgroundSprites.Count) backgroundSprites.RemoveAt(backgroundSprites.Count - 1);
-
-        for (int i = 0; i < backgroundSprites.Count; i++)
+        // Load common words (for seeds and grid words)
+        var commonAsset = Resources.Load<TextAsset>("commonwords");
+        if (commonAsset == null)
         {
-            backgroundSprites[i] = (Sprite)EditorGUILayout.ObjectField(
-                $"Sprite {i}", backgroundSprites[i], typeof(Sprite), false);
-        }
-
-        EditorGUILayout.Space();
-
-        if (GUILayout.Button("Generate Levels", GUILayout.Height(40)))
-        {
-            GenerateLevels();
-        }
-    }
-
-    private void LoadDictionary()
-    {
-        dictionary = new List<string>();
-        var asset = Resources.Load<TextAsset>("wordlist");
-        if (asset == null)
-        {
-            Debug.LogError("wordlist.txt not found in Resources! Place it at Assets/Resources/wordlist.txt");
+            Debug.LogError("commonwords.txt not found in Resources!");
             return;
         }
 
-        string[] lines = asset.text.Split('\n');
         var seen = new HashSet<string>();
-        foreach (var line in lines)
+        foreach (var line in commonAsset.text.Split('\n'))
         {
             string w = line.Trim().ToUpper();
             if (w.Length >= 3 && w.Length <= 7 && w.All(char.IsLetter) && seen.Add(w))
-                dictionary.Add(w);
+                commonWords.Add(w);
         }
 
-        Debug.Log($"Loaded {dictionary.Count} words from dictionary.");
-    }
-
-    private void GenerateLevels()
-    {
-        LoadDictionary();
-        if (dictionary.Count < 100)
+        // Load full dictionary (for extra/bonus word validation)
+        var fullAsset = Resources.Load<TextAsset>("wordlist");
+        if (fullAsset != null)
         {
-            EditorUtility.DisplayDialog("Error",
-                $"Dictionary too small ({dictionary.Count} words). Need at least 100.", "OK");
-            return;
-        }
-
-        EnsureFolderExists(outputFolder);
-        int generated = 0;
-
-        for (int level = 0; level < levelCount; level++)
-        {
-            EditorUtility.DisplayProgressBar("Generating Levels",
-                $"Level {level + 1} of {levelCount}...", (float)level / levelCount);
-
-            var levelData = GenerateSingleLevel(level);
-            if (levelData != null)
+            foreach (var line in fullAsset.text.Split('\n'))
             {
-                string path = $"{outputFolder}/Level_{level + 1}.asset";
-                AssetDatabase.CreateAsset(levelData, path);
-                Debug.Log($"Created level: {path} — {levelData.wordPlacements.Count} grid words, " +
-                          $"{levelData.extraWords.Count} extra words, seed: {levelData.letters}");
-                generated++;
-            }
-            else
-            {
-                Debug.LogWarning($"Failed to generate level {level + 1} after {maxGlobalRetries} retries.");
+                string w = line.Trim().ToUpper();
+                if (w.Length >= 3 && w.Length <= 7 && w.All(char.IsLetter))
+                    fullDictionary.Add(w);
             }
         }
 
-        EditorUtility.ClearProgressBar();
-        AssetDatabase.SaveAssets();
-        AssetDatabase.Refresh();
-        EditorUtility.DisplayDialog("Done",
-            $"Generated {generated}/{levelCount} levels in {outputFolder}", "OK");
+        Debug.Log($"[RuntimeLevelGenerator] Loaded {commonWords.Count} common words, {fullDictionary.Count} total dictionary words.");
     }
 
-    // ─── Phase A: Seed Selection ───
+    public bool IsReady => commonWords != null && commonWords.Count >= 100;
 
-    private static Dictionary<char, int> LetterCounts(string word)
+    /// <summary>
+    /// Generates a random LevelData instance. Returns null on failure.
+    /// </summary>
+    public LevelData Generate()
     {
-        var counts = new Dictionary<char, int>();
-        foreach (char c in word)
+        if (!IsReady)
         {
-            if (counts.ContainsKey(c)) counts[c]++;
-            else counts[c] = 1;
-        }
-        return counts;
-    }
-
-    private static bool CanFormFrom(string candidate, Dictionary<char, int> seedCounts)
-    {
-        var needed = new Dictionary<char, int>();
-        foreach (char c in candidate)
-        {
-            if (needed.ContainsKey(c)) needed[c]++;
-            else needed[c] = 1;
+            Debug.LogError("[RuntimeLevelGenerator] Dictionary not loaded or too small.");
+            return null;
         }
 
-        foreach (var kvp in needed)
-        {
-            if (!seedCounts.TryGetValue(kvp.Key, out int available) || available < kvp.Value)
-                return false;
-        }
-        return true;
-    }
-
-    private List<string> FindSubWords(string seed)
-    {
-        var seedCounts = LetterCounts(seed);
-        var result = new List<string>();
-        foreach (var word in dictionary)
-        {
-            if (word.Length <= seed.Length && word != seed && CanFormFrom(word, seedCounts))
-                result.Add(word);
-        }
-        return result;
-    }
-
-    // ─── Phase B: Crossword Construction ───
-
-    private struct Placement
-    {
-        public WordPlacement wp;
-        public int score;
-    }
-
-    private LevelData GenerateSingleLevel(int levelIndex)
-    {
-        // Shuffle seed candidates
-        var seeds = dictionary
-            .Where(w => w.Length >= seedMinLength && w.Length <= seedMaxLength)
+        // Shuffle seed candidates (from common words only)
+        var seeds = commonWords
+            .Where(w => w.Length >= SeedMinLength && w.Length <= SeedMaxLength)
             .OrderBy(_ => Random.value)
             .ToList();
 
         int retries = 0;
         foreach (var seed in seeds)
         {
-            if (retries >= maxGlobalRetries) break;
+            if (retries >= MaxRetries) break;
             retries++;
 
-            var subWords = FindSubWords(seed);
-            if (subWords.Count < minSubWords) continue;
+            // Find common sub-words for grid placement
+            var commonSubWords = FindSubWords(seed, commonWords);
+            if (commonSubWords.Count < 6) continue;
 
             // Sort by length descending, then random for variety
-            subWords.Sort((a, b) =>
+            commonSubWords.Sort((a, b) =>
             {
                 int lenCmp = b.Length.CompareTo(a.Length);
                 return lenCmp != 0 ? lenCmp : Random.Range(-1, 2);
@@ -203,7 +91,7 @@ public class WordLevelGenerator : EditorWindow
 
             // Include the seed itself as a placeable word
             var allWords = new List<string> { seed };
-            allWords.AddRange(subWords);
+            allWords.AddRange(commonSubWords);
 
             var result = BuildCrossword(allWords);
             if (result == null) continue;
@@ -239,12 +127,21 @@ public class WordLevelGenerator : EditorWindow
                 }
             }
 
-            // Build extra words list (sub-words not placed on grid)
+            // Build extra words list from FULL dictionary (any valid word earns bonus)
             var gridWords = new HashSet<string>(placements.Select(p => p.word));
-            var extraWords = subWords.Where(sw => !gridWords.Contains(sw)).ToList();
+            var allSubWords = FindSubWords(seed, fullDictionary);
+            var extraWords = allSubWords.Where(sw => !gridWords.Contains(sw)).ToList();
+
+            // Shuffle seed letters so the word isn't immediately readable on the wheel
+            char[] shuffled = seed.ToCharArray();
+            for (int s = shuffled.Length - 1; s > 0; s--)
+            {
+                int j = Random.Range(0, s + 1);
+                (shuffled[s], shuffled[j]) = (shuffled[j], shuffled[s]);
+            }
 
             var levelData = ScriptableObject.CreateInstance<LevelData>();
-            levelData.letters = seed; // preserves duplicate letters
+            levelData.letters = new string(shuffled);
             levelData.gridWidth = w;
             levelData.gridHeight = h;
             levelData.wordPlacements = placements;
@@ -255,13 +152,53 @@ public class WordLevelGenerator : EditorWindow
                 Random.Range(0.2f, 0.35f),
                 1f);
 
-            if (backgroundSprites.Count > 0)
-                levelData.backgroundSprite = backgroundSprites[levelIndex % backgroundSprites.Count];
-
             return levelData;
         }
 
+        Debug.LogWarning("[RuntimeLevelGenerator] Failed to generate a level after max retries.");
         return null;
+    }
+
+    // ─── Pure Logic (from WordLevelGenerator) ───
+
+    private static Dictionary<char, int> LetterCounts(string word)
+    {
+        var counts = new Dictionary<char, int>();
+        foreach (char c in word)
+        {
+            if (counts.ContainsKey(c)) counts[c]++;
+            else counts[c] = 1;
+        }
+        return counts;
+    }
+
+    private static bool CanFormFrom(string candidate, Dictionary<char, int> seedCounts)
+    {
+        var needed = new Dictionary<char, int>();
+        foreach (char c in candidate)
+        {
+            if (needed.ContainsKey(c)) needed[c]++;
+            else needed[c] = 1;
+        }
+
+        foreach (var kvp in needed)
+        {
+            if (!seedCounts.TryGetValue(kvp.Key, out int available) || available < kvp.Value)
+                return false;
+        }
+        return true;
+    }
+
+    private List<string> FindSubWords(string seed, IEnumerable<string> wordSource)
+    {
+        var seedCounts = LetterCounts(seed);
+        var result = new List<string>();
+        foreach (var word in wordSource)
+        {
+            if (word.Length <= seed.Length && word != seed && CanFormFrom(word, seedCounts))
+                result.Add(word);
+        }
+        return result;
     }
 
     private struct CrosswordResult
@@ -292,7 +229,7 @@ public class WordLevelGenerator : EditorWindow
         // Try to place remaining words
         for (int wi = 1; wi < words.Count; wi++)
         {
-            if (placements.Count >= targetGridWords) break;
+            if (placements.Count >= TargetGridWords) break;
 
             string word = words[wi];
             var best = FindBestPlacement(word, usedPositions);
@@ -435,23 +372,5 @@ public class WordLevelGenerator : EditorWindow
             return false;
 
         return hasIntersection;
-    }
-
-    // ─── Utilities ───
-
-    private static void EnsureFolderExists(string path)
-    {
-        string[] parts = path.Replace("\\", "/").Split('/');
-        string current = parts[0]; // "Assets"
-
-        for (int i = 1; i < parts.Length; i++)
-        {
-            string next = current + "/" + parts[i];
-            if (!AssetDatabase.IsValidFolder(next))
-            {
-                AssetDatabase.CreateFolder(current, parts[i]);
-            }
-            current = next;
-        }
     }
 }

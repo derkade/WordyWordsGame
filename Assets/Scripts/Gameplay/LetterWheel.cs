@@ -1,18 +1,76 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 using TMPro;
 
 public class LetterWheel : MonoBehaviour
 {
+    [Header("References")]
     [Tooltip("Parent RectTransform where letter tiles are spawned in a circle")]
     [SerializeField] private RectTransform wheelContainer;
     [Tooltip("Prefab for each letter tile (needs LetterTile component)")]
     [SerializeField] private GameObject letterTilePrefab;
-    [Tooltip("Radius of the circular tile arrangement in pixels")]
-    [SerializeField] private float wheelRadius = 140f;
+    [Tooltip("Large circle Image behind the letter tiles")]
+    [SerializeField] private Image wheelBackground;
+    [Tooltip("Shuffle button placed at the center of the wheel")]
+    [SerializeField] private Button shuffleButton;
+
+    [Header("Layout")]
+    [Tooltip("Distance from wheel center to letter positions in pixels")]
+    [SerializeField] private float wheelRadius = 85f;
+    [Tooltip("Minimum tile size in pixels")]
+    [SerializeField] private float tileMinSize = 60f;
+    [Tooltip("Maximum tile size in pixels")]
+    [SerializeField] private float tileMaxSize = 110f;
+    [Tooltip("Multiplier for tile size based on arc gap (smaller = more spacing between letters)")]
+    [Range(0.4f, 1f)]
+    [SerializeField] private float tileSizeFactor = 0.75f;
+    [Tooltip("How much padding the background circle adds beyond the tile edges (1.0 = tiles touch edge, higher = more padding)")]
+    [Range(0.5f, 2f)]
+    [SerializeField] private float backgroundPadding = 1.3f;
+    [Tooltip("Font size as a fraction of tile size")]
+    [Range(0.3f, 0.9f)]
+    [SerializeField] private float fontSizeRatio = 0.6f;
+
+    [Header("Shuffle Icon")]
+    [Tooltip("Tint color of the shuffle icon in the wheel center")]
+    [SerializeField] private Color shuffleIconColor = new Color(0.35f, 0.35f, 0.4f, 0.6f);
+
+    private static Sprite circleSprite;
 
     private List<LetterTile> tiles = new List<LetterTile>();
     private string currentLetters;
+
+    private void Start()
+    {
+        // Apply circle sprite to wheel background and render behind tiles
+        if (wheelBackground != null)
+        {
+            if (circleSprite == null)
+                circleSprite = GenerateCircleSprite(256);
+            wheelBackground.sprite = circleSprite;
+            wheelBackground.type = Image.Type.Simple;
+            wheelBackground.transform.SetAsFirstSibling();
+        }
+
+        if (shuffleButton != null)
+        {
+            shuffleButton.onClick.AddListener(ShuffleTiles);
+
+            // Apply shuffle icon sprite to button
+            var btnImage = shuffleButton.GetComponent<Image>();
+            if (btnImage != null)
+            {
+                btnImage.sprite = GenerateShuffleSprite(64);
+                btnImage.color = shuffleIconColor;
+            }
+
+            // Hide the text child — icon is sufficient
+            var btnText = shuffleButton.GetComponentInChildren<TMP_Text>();
+            if (btnText != null)
+                btnText.enabled = false;
+        }
+    }
 
     public void BuildWheel(string letters)
     {
@@ -26,7 +84,21 @@ public class LetterWheel : MonoBehaviour
 
         // Compute tile size: use arc gap between tiles, capped to a max
         float arcGap = 2f * Mathf.PI * wheelRadius / count;
-        float tileSize = Mathf.Clamp(arcGap * 0.75f, 60f, 110f);
+        float tileSize = Mathf.Clamp(arcGap * tileSizeFactor, tileMinSize, tileMaxSize);
+
+        // Size the wheel background circle to tightly frame the tiles
+        if (wheelBackground != null)
+        {
+            float bgSize = wheelRadius * 2f + tileSize * backgroundPadding;
+            wheelBackground.rectTransform.sizeDelta = new Vector2(bgSize, bgSize);
+        }
+
+        // Position shuffle button at center
+        if (shuffleButton != null)
+        {
+            var btnRT = shuffleButton.GetComponent<RectTransform>();
+            btnRT.anchoredPosition = Vector2.zero;
+        }
 
         for (int i = 0; i < count; i++)
         {
@@ -46,7 +118,7 @@ public class LetterWheel : MonoBehaviour
             // Scale font to match tile size
             TMP_Text txt = tileGO.GetComponentInChildren<TMP_Text>();
             if (txt != null)
-                txt.fontSize = tileSize * 0.5f;
+                txt.fontSize = tileSize * fontSizeRatio;
 
             LetterTile tile = tileGO.GetComponent<LetterTile>();
             tile.SetLetter(currentLetters[i]);
@@ -60,18 +132,26 @@ public class LetterWheel : MonoBehaviour
     {
         if (tiles.Count <= 1) return;
 
-        // Fisher-Yates shuffle of letter assignments (positions stay fixed)
-        char[] chars = currentLetters.ToCharArray();
-        for (int i = chars.Length - 1; i > 0; i--)
+        // Fisher-Yates shuffle, retry if result is the same arrangement
+        string previous = currentLetters;
+        char[] chars;
+        int attempts = 0;
+        do
         {
-            int j = Random.Range(0, i + 1);
-            (chars[i], chars[j]) = (chars[j], chars[i]);
-        }
+            chars = previous.ToCharArray();
+            for (int i = chars.Length - 1; i > 0; i--)
+            {
+                int j = Random.Range(0, i + 1);
+                (chars[i], chars[j]) = (chars[j], chars[i]);
+            }
+            attempts++;
+        } while (new string(chars) == previous && attempts < 10);
 
         currentLetters = new string(chars);
         for (int i = 0; i < tiles.Count; i++)
         {
             tiles[i].SetLetter(chars[i]);
+            tiles[i].transform.localScale = Vector3.one; // Reset before animating
             StartCoroutine(TweenHelper.PunchScale(tiles[i].transform, Vector3.one * 0.15f, 0.25f));
         }
     }
@@ -93,4 +173,91 @@ public class LetterWheel : MonoBehaviour
     }
 
     public List<LetterTile> Tiles => tiles;
+
+    private static Sprite GenerateShuffleSprite(int size)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+
+        // Clear to transparent
+        var clear = new Color(0, 0, 0, 0);
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+                tex.SetPixel(x, y, clear);
+
+        float lineWidth = size * 0.06f;
+        float margin = size * 0.2f;
+        float arrowSize = size * 0.12f;
+
+        // Draw two crossing diagonal lines
+        DrawLine(tex, size, margin, margin, size - margin, size - margin, lineWidth);
+        DrawLine(tex, size, margin, size - margin, size - margin, margin, lineWidth);
+
+        // Arrowheads at the right ends
+        // Top-right arrow (for line going bottom-left to top-right)
+        DrawLine(tex, size, size - margin, size - margin, size - margin - arrowSize, size - margin, lineWidth);
+        DrawLine(tex, size, size - margin, size - margin, size - margin, size - margin - arrowSize, lineWidth);
+
+        // Bottom-right arrow (for line going top-left to bottom-right)
+        DrawLine(tex, size, size - margin, margin, size - margin - arrowSize, margin, lineWidth);
+        DrawLine(tex, size, size - margin, margin, size - margin, margin + arrowSize, lineWidth);
+
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
+    }
+
+    private static void DrawLine(Texture2D tex, int size, float x0, float y0, float x1, float y1, float width)
+    {
+        float halfW = width * 0.5f;
+        int minX = Mathf.Max(0, (int)(Mathf.Min(x0, x1) - halfW - 1));
+        int maxX = Mathf.Min(size - 1, (int)(Mathf.Max(x0, x1) + halfW + 1));
+        int minY = Mathf.Max(0, (int)(Mathf.Min(y0, y1) - halfW - 1));
+        int maxY = Mathf.Min(size - 1, (int)(Mathf.Max(y0, y1) + halfW + 1));
+
+        float dx = x1 - x0, dy = y1 - y0;
+        float len = Mathf.Sqrt(dx * dx + dy * dy);
+        if (len < 0.001f) return;
+
+        for (int py = minY; py <= maxY; py++)
+        {
+            for (int px = minX; px <= maxX; px++)
+            {
+                // Distance from point to line segment
+                float t = Mathf.Clamp01(((px - x0) * dx + (py - y0) * dy) / (len * len));
+                float cx = x0 + t * dx, cy = y0 + t * dy;
+                float dist = Mathf.Sqrt((px - cx) * (px - cx) + (py - cy) * (py - cy));
+                float alpha = Mathf.Clamp01(halfW - dist + 0.5f);
+                if (alpha > 0)
+                {
+                    Color existing = tex.GetPixel(px, py);
+                    float blended = Mathf.Max(existing.a, alpha);
+                    tex.SetPixel(px, py, new Color(1f, 1f, 1f, blended));
+                }
+            }
+        }
+    }
+
+    private static Sprite GenerateCircleSprite(int size)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+
+        float center = size * 0.5f;
+        float radius = center - 1f;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dist = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
+                float alpha = Mathf.Clamp01(radius - dist + 0.5f);
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+            }
+        }
+
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
+    }
 }

@@ -41,6 +41,10 @@ crashlytics-build.properties
 .idea/
 *.iml
 
+# Claude Code
+.claude/
+*.slnx
+
 # OS generated
 .DS_Store
 .DS_Store?
