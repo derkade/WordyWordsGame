@@ -16,9 +16,9 @@ public static class SetupParallaxLayers
 
     private static readonly string[] themeNames = { "Jungle", "Desert", "IceAge" };
     private static readonly string[] themePaths = {
-        "Assets/2D Adventure Background Pack/Backgrounds/Jungle/",
-        "Assets/2D Adventure Background Pack/Backgrounds/Desert/",
-        "Assets/2D Adventure Background Pack/Backgrounds/IceAge/"
+        "Assets/Art/Backgrounds/Jungle/",
+        "Assets/Art/Backgrounds/Desert/",
+        "Assets/Art/Backgrounds/IceAge/"
     };
 
     [MenuItem("Tools/Setup All Parallax Themes")]

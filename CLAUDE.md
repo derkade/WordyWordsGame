@@ -105,6 +105,8 @@ When context usage is getting high, or before a natural stopping point, **always
 - Key design decisions and why they were made
 - Any known issues, TODOs, or next steps
 
+Do NOT add co-author tags or AI attribution to commits. All commits should be authored solely by derkade.
+
 This is critical because conversation context compacts over long sessions and memory is lost. The git log serves as durable memory that survives across sessions and machines. Claude Code can always run `git log --oneline -20` or `git log -1 --format=%B` to recover context from previous work.
 
 ### Debugging Stubborn Problems
@@ -119,3 +121,11 @@ Always ensure all meaningful work is committed and pushed before wrapping up. An
 - **Claude Code CLI** with Unity MCP integration (CoplayDev/unity-mcp)
 - **MCP server:** http://127.0.0.1:8080/mcp
 - **Python 3.13** + uv package manager required for MCP bridge
+
+### Machine-Specific Paths
+**CatDragon:**
+- Python: `C:\Users\CatDragon\AppData\Local\Programs\Python\Python313`
+- Project: `C:\Unity2D_Projects\WordyWordsGame`
+
+**PicoWaffen:**
+- Project: `C:\Unity2D_Projects\WordyWordsGame`

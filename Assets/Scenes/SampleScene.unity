@@ -1511,11 +1511,11 @@ MonoBehaviour:
       alpha: 1
       verticalAnchor: 2
     - sprite: {fileID: 21300000, guid: a3b974fba1a5fa94f9685dfccfef4b17, type: 3}
-      scrollSpeed: 0.01
+      scrollSpeed: 0.008
       alpha: 1
       verticalAnchor: 1
     - sprite: {fileID: 21300000, guid: 660f704e370aefa468adc0e4aebbf89f, type: 3}
-      scrollSpeed: 0.02
+      scrollSpeed: 0.012
       alpha: 1
       verticalAnchor: 1
   - name: Desert
@@ -1533,11 +1533,11 @@ MonoBehaviour:
       alpha: 1
       verticalAnchor: 2
     - sprite: {fileID: 21300000, guid: ef2300dd341bd394f818de0b11d12cd4, type: 3}
-      scrollSpeed: 0.01
+      scrollSpeed: 0.008
       alpha: 1
       verticalAnchor: 1
     - sprite: {fileID: 21300000, guid: e33c1bfeedd9a4042b67eba94500d9d1, type: 3}
-      scrollSpeed: 0.02
+      scrollSpeed: 0.012
       alpha: 1
       verticalAnchor: 1
   - name: IceAge
@@ -1555,11 +1555,11 @@ MonoBehaviour:
       alpha: 1
       verticalAnchor: 2
     - sprite: {fileID: 21300000, guid: 9b8e709e716a1ed4da1cf5eebeef263f, type: 3}
-      scrollSpeed: 0.01
+      scrollSpeed: 0.008
       alpha: 1
       verticalAnchor: 1
     - sprite: {fileID: 21300000, guid: 748e40d7830847b4785ad4d6a2faa35f, type: 3}
-      scrollSpeed: 0.02
+      scrollSpeed: 0.012
       alpha: 1
       verticalAnchor: 1
   layers:
@@ -5646,6 +5646,7 @@ MonoBehaviour:
   maxCellSize: 120
   minCellSize: 30
   cellSpacing: 4
+  cellBorderWidth: 2
   gridPadding: 2
   cellDefaultColor: {r: 0.3, g: 0.3, b: 0.5, a: 1}
   cellRevealedColor: {r: 1, g: 1, b: 1, a: 1}
