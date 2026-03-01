@@ -22,10 +22,14 @@ public static class RebuildDefinitionPanel
         }
         if (panelGO == null) { Debug.LogError("DefinitionPanel not found!"); return; }
 
-        // Load default TMP font
-        var defaultFont = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+        // Load default TMP font via AssetDatabase
+        TMP_FontAsset defaultFont = null;
+        var guids = AssetDatabase.FindAssets("LiberationSans SDF t:TMP_FontAsset");
+        if (guids.Length > 0)
+            defaultFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(AssetDatabase.GUIDToAssetPath(guids[0]));
         if (defaultFont == null)
             defaultFont = TMP_Settings.defaultFontAsset;
+        Debug.Log($"TMP Font: {(defaultFont != null ? defaultFont.name : "NULL")} (found {guids.Length} assets)");
 
         // Delete all children
         while (panelGO.transform.childCount > 0)
