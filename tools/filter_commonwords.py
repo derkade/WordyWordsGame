@@ -1,6 +1,6 @@
 """
-Filter wordlist.txt by checking each word against the Free Dictionary API.
-Removes words that have no definition (abbreviations, names, etc.)
+Filter commonwords.txt by checking each word against the Free Dictionary API.
+Removes abbreviations, codes, and non-dictionary words.
 Saves progress periodically so it can resume if interrupted.
 """
 
@@ -9,16 +9,14 @@ import aiohttp
 import os
 import json
 import time
-import sys
 
-WORDLIST_PATH = os.path.join(os.path.dirname(__file__), "..", "Assets", "Resources", "wordlist.txt")
 COMMON_PATH = os.path.join(os.path.dirname(__file__), "..", "Assets", "Resources", "commonwords.txt")
-PROGRESS_PATH = os.path.join(os.path.dirname(__file__), "filter_progress.json")
-OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "..", "Assets", "Resources", "wordlist_filtered.txt")
+PROGRESS_PATH = os.path.join(os.path.dirname(__file__), "filter_common_progress.json")
+OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "..", "Assets", "Resources", "commonwords_filtered.txt")
 
 API_URL = "https://api.dictionaryapi.dev/api/v2/entries/en/{}"
 CONCURRENCY = 15
-SAVE_INTERVAL = 200  # save progress every N words checked
+SAVE_INTERVAL = 200
 RETRY_DELAY = 3.0
 MAX_RETRIES = 5
 
@@ -60,7 +58,6 @@ async def check_word(session, word, semaphore, progress, stats):
                         stats["invalid"] += 1
                         return
                     elif resp.status == 429:
-                        # Rate limited - back off
                         wait = RETRY_DELAY * (attempt + 2)
                         stats["rate_limits"] += 1
                         await asyncio.sleep(wait)
@@ -80,31 +77,20 @@ async def check_word(session, word, semaphore, progress, stats):
 
 
 async def main():
-    print("Loading word lists...")
-    all_words = load_words(WORDLIST_PATH)
-    common_words = set(load_words(COMMON_PATH))
+    print("Loading common words...")
+    all_words = load_words(COMMON_PATH)
     progress = load_progress()
 
     already_checked = len(progress["checked"])
     if already_checked > 0:
-        print(f"Resuming from previous run: {already_checked} words already checked")
+        print(f"Resuming: {already_checked} words already checked")
 
-    # Common words are pre-validated (curated list)
-    words_to_check = []
-    for w in all_words:
-        if w in common_words:
-            if w.lower() not in progress["checked"]:
-                progress["checked"][w.lower()] = True
-                progress["valid"].append(w)
-        elif w.lower() not in progress["checked"]:
-            words_to_check.append(w)
+    words_to_check = [w for w in all_words if w.lower() not in progress["checked"]]
 
     total = len(words_to_check)
-    print(f"Total words: {len(all_words)}")
-    print(f"Common words (auto-valid): {len(common_words)}")
+    print(f"Total common words: {len(all_words)}")
     print(f"Already checked: {already_checked}")
-    print(f"Words to check via API: {total}")
-    print(f"Concurrency: {CONCURRENCY}")
+    print(f"Words to check: {total}")
     print()
 
     if total == 0:
@@ -147,7 +133,7 @@ async def main():
         print(f"  Errors (kept): {stats['failed_kept']}")
         print(f"  Rate limits hit: {stats['rate_limits']}")
 
-    # Write filtered wordlist
+    # Write filtered list
     valid_set = set(w.lower() for w, v in progress["checked"].items() if v)
     output_words = [w for w in all_words if w.lower() in valid_set]
     output_words.sort()
@@ -156,11 +142,16 @@ async def main():
         for w in output_words:
             f.write(w + "\n")
 
-    print(f"\nFiltered wordlist written to: {OUTPUT_PATH}")
+    removed = len(all_words) - len(output_words)
+    print(f"\nFiltered common words written to: {OUTPUT_PATH}")
     print(f"  Original: {len(all_words)} words")
     print(f"  Filtered: {len(output_words)} words")
-    print(f"  Removed:  {len(all_words) - len(output_words)} words")
-    print(f"\nTo apply: rename wordlist_filtered.txt to wordlist.txt")
+    print(f"  Removed:  {removed} words")
+
+    # Show some of the removed words
+    invalid_words = sorted(set(all_words) - set(output_words))
+    if invalid_words:
+        print(f"\nSample removed words: {', '.join(invalid_words[:50])}")
 
 
 if __name__ == "__main__":

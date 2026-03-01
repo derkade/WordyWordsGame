@@ -328,7 +328,11 @@ public class GameManager : MonoBehaviour
     private void OnWordBankWordClicked(string word)
     {
         if (definitionPanel != null)
-            definitionPanel.Show(word);
+        {
+            int index = foundExtraWords.IndexOf(word);
+            if (index < 0) index = 0;
+            definitionPanel.Show(word, new List<string>(foundExtraWords), index);
+        }
     }
 
     private void OnWordBankClicked()
