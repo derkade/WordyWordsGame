@@ -34,6 +34,10 @@ public class CrosswordGrid : MonoBehaviour
     [Tooltip("Corner radius for the inner cell fill in pixels")]
     [SerializeField] private float cellFillCornerRadius = 4f;
 
+    [Header("Debug")]
+    [Tooltip("Show all letters on the grid (cheat mode)")]
+    [SerializeField] private bool cheatShowLetters = false;
+
     private class GridCell
     {
         public RectTransform rectTransform;
@@ -44,13 +48,24 @@ public class CrosswordGrid : MonoBehaviour
         public List<string> belongsToWords = new List<string>();
     }
 
+    public event System.Action<string> OnGridWordClicked;
+
     private Dictionary<Vector2Int, GridCell> cells = new Dictionary<Vector2Int, GridCell>();
     private Dictionary<string, List<Vector2Int>> wordCellPositions = new Dictionary<string, List<Vector2Int>>();
+    private Dictionary<string, bool> wordDirections = new Dictionary<string, bool>();
     private HashSet<string> revealedWords = new HashSet<string>();
     private LevelData currentLevel;
+    private Camera canvasCamera;
     private Material roundedRectMaterial;
     private Material cellBorderMaterial;
     private Material cellFillMaterial;
+
+    private void Awake()
+    {
+        var canvas = GetComponentInParent<Canvas>();
+        if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
+            canvasCamera = canvas.worldCamera;
+    }
 
     private float ComputeCellSize(int gridWidth, int gridHeight)
     {
@@ -97,6 +112,7 @@ public class CrosswordGrid : MonoBehaviour
         foreach (var wp in levelData.wordPlacements)
         {
             string upperWord = wp.word.ToUpper();
+            wordDirections[upperWord] = wp.isHorizontal;
             var positions = new List<Vector2Int>();
 
             for (int i = 0; i < upperWord.Length; i++)
@@ -150,6 +166,9 @@ public class CrosswordGrid : MonoBehaviour
                     txt.color = letterColor;
                     txt.fontSize = cellSize * 0.55f;
 
+                    var clickHandler = cellGO.AddComponent<GridCellClickHandler>();
+                    clickHandler.Init(this, pos);
+
                     var cell = new GridCell
                     {
                         rectTransform = rt,
@@ -166,6 +185,16 @@ public class CrosswordGrid : MonoBehaviour
 
             wordCellPositions[upperWord] = positions;
         }
+
+        if (cheatShowLetters)
+        {
+            foreach (var kvp in cells)
+            {
+                var cell = kvp.Value;
+                cell.letterText.text = cell.letter.ToString();
+                cell.letterText.color = cell.isRevealed ? letterColor : new Color(letterColor.r, letterColor.g, letterColor.b, 0.35f);
+            }
+        }
     }
 
     public void ClearGrid()
@@ -177,6 +206,7 @@ public class CrosswordGrid : MonoBehaviour
         }
         cells.Clear();
         wordCellPositions.Clear();
+        wordDirections.Clear();
         revealedWords.Clear();
     }
 
@@ -299,6 +329,49 @@ public class CrosswordGrid : MonoBehaviour
                 result.Add(cells[pos].rectTransform);
         }
         return result;
+    }
+
+    public void HandleCellClick(Vector2Int pos, Vector2 screenPos)
+    {
+        if (!cells.ContainsKey(pos)) return;
+        var cell = cells[pos];
+        if (!cell.isRevealed) return;
+
+        var words = cell.belongsToWords;
+        if (words.Count == 0) return;
+
+        string chosenWord;
+        if (words.Count == 1)
+        {
+            chosenWord = words[0];
+        }
+        else
+        {
+            // Intersection: pick word based on click direction relative to cell center
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                cell.rectTransform, screenPos, canvasCamera, out Vector2 localPos);
+
+            // Find horizontal and vertical words
+            string horizontalWord = null;
+            string verticalWord = null;
+            foreach (string w in words)
+            {
+                if (wordDirections.ContainsKey(w))
+                {
+                    if (wordDirections[w])
+                        horizontalWord = w;
+                    else
+                        verticalWord = w;
+                }
+            }
+
+            if (Mathf.Abs(localPos.x) >= Mathf.Abs(localPos.y))
+                chosenWord = horizontalWord ?? verticalWord ?? words[0];
+            else
+                chosenWord = verticalWord ?? horizontalWord ?? words[0];
+        }
+
+        OnGridWordClicked?.Invoke(chosenWord);
     }
 
 }

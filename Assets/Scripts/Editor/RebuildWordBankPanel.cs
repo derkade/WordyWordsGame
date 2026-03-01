@@ -105,6 +105,9 @@ public static class RebuildWordBankPanel
         scrollRT.anchorMax = Vector2.one;
         scrollRT.offsetMin = new Vector2(10, 10);
         scrollRT.offsetMax = new Vector2(-10, -75);
+        var scrollImg = scrollGO.AddComponent<Image>();
+        scrollImg.color = Color.clear;
+        scrollImg.raycastTarget = true;
         scrollGO.AddComponent<RectMask2D>();
         var scrollRect = scrollGO.AddComponent<ScrollRect>();
         scrollRect.horizontal = false;
@@ -148,14 +151,17 @@ public static class RebuildWordBankPanel
         // Add WordBankClickHandler
         var clickHandler = textGO.AddComponent<WordBankClickHandler>();
 
-        // Lined background (child of text GO, rendered behind text, stretches to fill)
+        // Lined background: child of textGO (same coordinate space for alignment),
+        // top-anchored with large fixed height so lines extend to fill the viewport.
+        // The scroll view's RectMask2D clips any overflow below.
         var linedBgGO = CreateUI("LinedBackground", textGO.transform);
         var linedBgRT = linedBgGO.GetComponent<RectTransform>();
-        linedBgRT.anchorMin = Vector2.zero;
-        linedBgRT.anchorMax = Vector2.one;
-        linedBgRT.offsetMin = Vector2.zero;
-        linedBgRT.offsetMax = Vector2.zero;
-        linedBgGO.transform.SetAsFirstSibling(); // behind text
+        linedBgRT.anchorMin = new Vector2(0, 1);
+        linedBgRT.anchorMax = new Vector2(1, 1);
+        linedBgRT.pivot = new Vector2(0.5f, 1);
+        linedBgRT.anchoredPosition = Vector2.zero;
+        linedBgRT.sizeDelta = new Vector2(0, 1200);
+        linedBgGO.transform.SetAsFirstSibling();
         var linedBgImg = linedBgGO.AddComponent<Image>();
         linedBgImg.color = Color.white;
         linedBgImg.raycastTarget = false;

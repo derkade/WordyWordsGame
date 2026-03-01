@@ -100,25 +100,23 @@ public class LinedTextBackground : MonoBehaviour
 
     private float CalculateLineHeight()
     {
-        // Temporarily set some text so ForceMeshUpdate can compute metrics
+        // Temporarily set two-line text to measure actual line-to-line distance
+        // (includes lineSpacing, which lineInfo[0].lineHeight does not)
         string original = targetText.text;
-        bool wasEmpty = string.IsNullOrEmpty(original);
-        if (wasEmpty)
-            targetText.text = "A";
 
+        targetText.text = "A\nA";
         targetText.ForceMeshUpdate();
 
         var textInfo = targetText.textInfo;
-        if (textInfo.lineCount > 0 && textInfo.lineInfo[0].characterCount > 0)
+        if (textInfo.lineCount >= 2)
         {
-            float height = textInfo.lineInfo[0].lineHeight;
-            if (wasEmpty)
-                targetText.text = original;
-            return height;
+            // Measure actual distance between first and second line origins
+            float distance = textInfo.lineInfo[0].ascender - textInfo.lineInfo[1].ascender;
+            targetText.text = original;
+            return Mathf.Abs(distance);
         }
 
-        if (wasEmpty)
-            targetText.text = original;
+        targetText.text = original;
 
         // Fallback: compute from font metrics
         var font = targetText.font;

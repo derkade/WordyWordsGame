@@ -112,6 +112,9 @@ public static class RebuildDefinitionPanel
         scrollRT.anchorMax = Vector2.one;
         scrollRT.offsetMin = new Vector2(10, 10);
         scrollRT.offsetMax = new Vector2(-10, -90);
+        var scrollImg = scrollGO.AddComponent<Image>();
+        scrollImg.color = Color.clear;
+        scrollImg.raycastTarget = true;
         scrollGO.AddComponent<RectMask2D>();
         var scrollRect = scrollGO.AddComponent<ScrollRect>();
         scrollRect.horizontal = false;
@@ -297,6 +300,7 @@ public static class RebuildDefinitionPanel
         so.FindProperty("outerFrame").objectReferenceValue = outerImg;
         so.FindProperty("innerPanel").objectReferenceValue = innerImg;
         so.FindProperty("cornerRadius").floatValue = 24f;
+        so.FindProperty("scrollRect").objectReferenceValue = scrollRect;
         so.ApplyModifiedProperties();
 
         EditorUtility.SetDirty(panelGO);

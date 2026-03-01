@@ -30,6 +30,8 @@ public class DefinitionPanel : MonoBehaviour
     [SerializeField] private TMP_Text navCountText;
     [Tooltip("Navigation bar parent (hidden when only one word)")]
     [SerializeField] private GameObject navBar;
+    [Tooltip("ScrollRect for the definition content")]
+    [SerializeField] private ScrollRect scrollRect;
 
     [Header("Visual")]
     [Tooltip("Outer frame Image for rounded gray border")]
@@ -166,6 +168,10 @@ public class DefinitionPanel : MonoBehaviour
         if (loadingIndicator != null)
             loadingIndicator.SetActive(true);
 
+        // Reset scroll to top
+        if (scrollRect != null)
+            scrollRect.verticalNormalizedPosition = 1f;
+
         // Fetch definition
         if (DictionaryService.Instance != null)
             DictionaryService.Instance.FetchDefinition(word, OnDefinitionReceived);
@@ -253,6 +259,10 @@ public class DefinitionPanel : MonoBehaviour
         }
 
         definitionText.text = sb.ToString().TrimEnd();
+        definitionText.ForceMeshUpdate();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(definitionText.rectTransform);
+        if (scrollRect != null && scrollRect.content != null)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(scrollRect.content);
     }
 
     public void Hide()

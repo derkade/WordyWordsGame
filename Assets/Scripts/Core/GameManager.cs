@@ -117,6 +117,8 @@ public class GameManager : MonoBehaviour
             wordBankCloseButton.onClick.AddListener(OnWordBankClosed);
         if (wordBankClickHandler != null)
             wordBankClickHandler.OnWordClicked += OnWordBankWordClicked;
+        if (crosswordGrid != null)
+            crosswordGrid.OnGridWordClicked += OnGridWordClicked;
         if (wordBankPanel != null)
             wordBankPanel.SetActive(false);
 
@@ -139,6 +141,8 @@ public class GameManager : MonoBehaviour
         }
         if (wordBankClickHandler != null)
             wordBankClickHandler.OnWordClicked -= OnWordBankWordClicked;
+        if (crosswordGrid != null)
+            crosswordGrid.OnGridWordClicked -= OnGridWordClicked;
     }
 
     private void Update()
@@ -335,6 +339,12 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    private void OnGridWordClicked(string word)
+    {
+        if (definitionPanel != null)
+            definitionPanel.Show(word);
+    }
+
     private void OnWordBankClicked()
     {
         if (wordBankPanel == null) return;
@@ -350,7 +360,7 @@ public class GameManager : MonoBehaviour
                 {
                     string w = foundExtraWords[i];
                     if (i > 0) sb.Append(",  ");
-                    sb.Append($"<link=\"{w}\"><u><color=#FFD080>{w}</color></u></link>");
+                    sb.Append($"<link=\"{w}\"><color=#FFD080>{w}</color></link>");
                 }
                 wordBankText.text = sb.ToString();
             }
