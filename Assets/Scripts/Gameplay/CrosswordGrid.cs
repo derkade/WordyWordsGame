@@ -29,6 +29,10 @@ public class CrosswordGrid : MonoBehaviour
     [SerializeField] private Color cellRevealedColor = new Color(1f, 1f, 1f, 1f);
     [Tooltip("Text color for revealed letters")]
     [SerializeField] private Color letterColor = new Color(0.1f, 0.1f, 0.15f, 1f);
+    [Tooltip("Corner radius for the outer cell border in pixels")]
+    [SerializeField] private float cellCornerRadius = 6f;
+    [Tooltip("Corner radius for the inner cell fill in pixels")]
+    [SerializeField] private float cellFillCornerRadius = 4f;
 
     private class GridCell
     {
@@ -80,10 +84,10 @@ public class CrosswordGrid : MonoBehaviour
             float innerSize = cellSize - cellBorderWidth * 2f;
             cellBorderMaterial = new Material(roundedRectMaterial);
             cellBorderMaterial.SetVector("_RectSize", new Vector4(cellSize, cellSize, 0, 0));
-            cellBorderMaterial.SetFloat("_Radius", 6f);
+            cellBorderMaterial.SetFloat("_Radius", cellCornerRadius);
             cellFillMaterial = new Material(roundedRectMaterial);
             cellFillMaterial.SetVector("_RectSize", new Vector4(innerSize, innerSize, 0, 0));
-            cellFillMaterial.SetFloat("_Radius", 4f);
+            cellFillMaterial.SetFloat("_Radius", cellFillCornerRadius);
         }
 
         // Center the grid in the container

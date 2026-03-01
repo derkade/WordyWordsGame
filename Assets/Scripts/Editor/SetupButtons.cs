@@ -43,11 +43,10 @@ public static class SetupButtons
 
     private static void SetupButton(GameObject btnGO, Shader shader, float width, float height)
     {
-        // Set size via LayoutElement so HorizontalLayoutGroup respects it
-        var layout = btnGO.GetComponent<LayoutElement>();
-        if (layout == null) layout = btnGO.AddComponent<LayoutElement>();
-        layout.preferredWidth = width;
-        layout.preferredHeight = height;
+        // Set sizeDelta directly (layout group has childControl off)
+        var rt = btnGO.GetComponent<RectTransform>();
+        if (rt != null)
+            rt.sizeDelta = new Vector2(width, height);
 
         // Apply SDF rounded rect material
         var img = btnGO.GetComponent<Image>();

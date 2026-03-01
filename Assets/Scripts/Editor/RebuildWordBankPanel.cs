@@ -148,6 +148,25 @@ public static class RebuildWordBankPanel
         // Add WordBankClickHandler
         var clickHandler = textGO.AddComponent<WordBankClickHandler>();
 
+        // Lined background (child of text GO, rendered behind text, stretches to fill)
+        var linedBgGO = CreateUI("LinedBackground", textGO.transform);
+        var linedBgRT = linedBgGO.GetComponent<RectTransform>();
+        linedBgRT.anchorMin = Vector2.zero;
+        linedBgRT.anchorMax = Vector2.one;
+        linedBgRT.offsetMin = Vector2.zero;
+        linedBgRT.offsetMax = Vector2.zero;
+        linedBgGO.transform.SetAsFirstSibling(); // behind text
+        var linedBgImg = linedBgGO.AddComponent<Image>();
+        linedBgImg.color = Color.white;
+        linedBgImg.raycastTarget = false;
+        var linedBg = linedBgGO.AddComponent<LinedTextBackground>();
+        var linedSO = new SerializedObject(linedBg);
+        linedSO.FindProperty("targetText").objectReferenceValue = textTMP;
+        linedSO.FindProperty("lineColor").colorValue = new Color(1f, 1f, 1f, 0.12f);
+        linedSO.FindProperty("lineThickness").intValue = 1;
+        linedSO.FindProperty("verticalOffset").floatValue = 4f;
+        linedSO.ApplyModifiedProperties();
+
         // === Close Button (X, top right of outer frame) ===
         var closeGO = CreateUI("WordBankCloseButton", outerGO.transform);
         var closeRT = closeGO.GetComponent<RectTransform>();
