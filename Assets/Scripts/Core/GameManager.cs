@@ -37,6 +37,8 @@ public class GameManager : MonoBehaviour
     [SerializeField] private Button hintButton;
     [Tooltip("Background image that can change per level")]
     [SerializeField] private Image backgroundImage;
+    [Tooltip("Parallax background that randomly switches themes each level")]
+    [SerializeField] private ParallaxBackground parallaxBackground;
 
     [Header("Word Bank")]
     [Tooltip("Button to open the Word Bank overlay")]
@@ -186,6 +188,10 @@ public class GameManager : MonoBehaviour
             backgroundImage.color = level.backgroundColor;
         }
 
+        // Switch parallax theme
+        if (parallaxBackground != null)
+            parallaxBackground.ApplyRandomTheme();
+
         // Build grid
         crosswordGrid.BuildGrid(level);
 
@@ -196,7 +202,7 @@ public class GameManager : MonoBehaviour
         swipeController.SetWordSets(level.GetGridWordSet(), level.GetExtraWordSet());
 
         // Update UI
-        levelText.text = useRandomLevels ? $"Puzzle {currentLevelIndex + 1}" : $"Level {currentLevelIndex + 1}";
+        levelText.text = $"LEVEL {currentLevelIndex + 1}";
         if (extraWordsCountText != null)
         {
             extraWordsCountText.text = "";

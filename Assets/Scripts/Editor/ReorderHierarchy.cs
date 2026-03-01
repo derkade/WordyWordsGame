@@ -37,6 +37,22 @@ public static class ReorderHierarchy
         }
     }
 
+    [MenuItem("Tools/Move ParallaxBG To First Sibling")]
+    public static void MoveParallaxBGFirst()
+    {
+        var parallaxBG = GameObject.Find("GameCanvas/ParallaxBG");
+        if (parallaxBG != null)
+        {
+            parallaxBG.transform.SetSiblingIndex(0);
+            Debug.Log("ParallaxBG moved to sibling index 0 (renders behind everything)");
+            MarkDirty(parallaxBG);
+        }
+        else
+        {
+            Debug.LogError("Could not find ParallaxBG!");
+        }
+    }
+
     private static void MarkDirty(GameObject go)
     {
         EditorUtility.SetDirty(go);

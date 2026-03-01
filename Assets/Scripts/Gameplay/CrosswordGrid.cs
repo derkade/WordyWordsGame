@@ -19,6 +19,8 @@ public class CrosswordGrid : MonoBehaviour
     [SerializeField] private float minCellSize = 30f;
     [Tooltip("Gap between adjacent grid cells in pixels")]
     [SerializeField] private float cellSpacing = 4f;
+    [Tooltip("Border thickness around each cell in pixels")]
+    [SerializeField] private float cellBorderWidth = 2f;
     [Tooltip("Padding inside the grid container in pixels")]
     [SerializeField] private float gridPadding = 2f;
     [Tooltip("Background color of unrevealed cells")]
@@ -96,10 +98,25 @@ public class CrosswordGrid : MonoBehaviour
                     float yPos = -(pos.y * (cellSize + cellSpacing) - totalHeight * 0.5f + cellSize * 0.5f);
                     rt.anchoredPosition = new Vector2(xPos, yPos);
 
-                    Image bg = cellGO.GetComponent<Image>();
-                    bg.color = cellDefaultColor;
+                    // Outer image = black border
+                    Image border = cellGO.GetComponent<Image>();
+                    border.color = Color.black;
 
+                    // Inner fill image for the actual tile color
+                    var fillGO = new GameObject("Fill");
+                    fillGO.transform.SetParent(cellGO.transform, false);
+                    RectTransform fillRT = fillGO.AddComponent<RectTransform>();
+                    fillRT.anchorMin = Vector2.zero;
+                    fillRT.anchorMax = Vector2.one;
+                    fillRT.offsetMin = new Vector2(cellBorderWidth, cellBorderWidth);
+                    fillRT.offsetMax = new Vector2(-cellBorderWidth, -cellBorderWidth);
+                    Image bg = fillGO.AddComponent<Image>();
+                    bg.color = cellDefaultColor;
+                    bg.raycastTarget = false;
+
+                    // Move LetterText to render on top of fill
                     TMP_Text txt = cellGO.GetComponentInChildren<TMP_Text>();
+                    txt.transform.SetAsLastSibling();
                     txt.text = "";
                     txt.color = letterColor;
                     txt.fontSize = cellSize * 0.55f;
