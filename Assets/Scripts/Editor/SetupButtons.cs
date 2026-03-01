@@ -18,8 +18,9 @@ public static class SetupButtons
         }
         if (buttonBar == null) { Debug.LogError("ButtonBar not found!"); return; }
 
-        // Generate rounded sprite
-        Sprite roundedSprite = GenerateRoundedRectSprite(128, 20);
+        // Create SDF rounded rect material
+        var shader = Shader.Find("UI/RoundedRect");
+        if (shader == null) { Debug.LogError("UI/RoundedRect shader not found!"); return; }
 
         // Find buttons
         Button hintBtn = null, wordBankBtn = null;
@@ -29,8 +30,9 @@ public static class SetupButtons
             if (child.name == "WordBankButton") wordBankBtn = child.GetComponent<Button>();
         }
 
-        if (hintBtn != null) SetupButton(hintBtn.gameObject, roundedSprite, 180, 60);
-        if (wordBankBtn != null) SetupButton(wordBankBtn.gameObject, roundedSprite, 180, 60);
+        float width = 180f, height = 60f;
+        if (hintBtn != null) SetupButton(hintBtn.gameObject, shader, width, height);
+        if (wordBankBtn != null) SetupButton(wordBankBtn.gameObject, shader, width, height);
 
         EditorUtility.SetDirty(buttonBar.gameObject);
         UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(
@@ -39,7 +41,7 @@ public static class SetupButtons
         Debug.Log("Button Bar set up successfully!");
     }
 
-    private static void SetupButton(GameObject btnGO, Sprite sprite, float width, float height)
+    private static void SetupButton(GameObject btnGO, Shader shader, float width, float height)
     {
         // Set size via LayoutElement so HorizontalLayoutGroup respects it
         var layout = btnGO.GetComponent<LayoutElement>();
@@ -47,48 +49,20 @@ public static class SetupButtons
         layout.preferredWidth = width;
         layout.preferredHeight = height;
 
-        // Apply rounded sprite
+        // Apply SDF rounded rect material
         var img = btnGO.GetComponent<Image>();
         if (img != null)
         {
-            img.sprite = sprite;
-            img.type = Image.Type.Sliced;
+            // Clear any old sprite
+            img.sprite = null;
+            img.type = Image.Type.Simple;
+
+            var mat = new Material(shader);
+            mat.SetVector("_RectSize", new Vector4(width, height, 0, 0));
+            mat.SetFloat("_Radius", 14f);
+            img.material = mat;
         }
 
         EditorUtility.SetDirty(btnGO);
-    }
-
-    private static Sprite GenerateRoundedRectSprite(int size, int radius)
-    {
-        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
-        tex.wrapMode = TextureWrapMode.Clamp;
-        tex.filterMode = FilterMode.Bilinear;
-        Color white = Color.white;
-        Color clear = new Color(1f, 1f, 1f, 0f);
-
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float dx = 0f, dy = 0f;
-                bool inCorner = false;
-                if (x < radius && y < radius) { dx = radius - x; dy = radius - y; inCorner = true; }
-                else if (x >= size - radius && y < radius) { dx = x - (size - radius - 1); dy = radius - y; inCorner = true; }
-                else if (x < radius && y >= size - radius) { dx = radius - x; dy = y - (size - radius - 1); inCorner = true; }
-                else if (x >= size - radius && y >= size - radius) { dx = x - (size - radius - 1); dy = y - (size - radius - 1); inCorner = true; }
-
-                if (inCorner)
-                {
-                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
-                    if (dist > radius) tex.SetPixel(x, y, clear);
-                    else if (dist > radius - 1.5f) tex.SetPixel(x, y, new Color(1f, 1f, 1f, 1f - (dist - (radius - 1.5f)) / 1.5f));
-                    else tex.SetPixel(x, y, white);
-                }
-                else tex.SetPixel(x, y, white);
-            }
-        }
-        tex.Apply();
-        Vector4 border = new Vector4(radius, radius, radius, radius);
-        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
     }
 }

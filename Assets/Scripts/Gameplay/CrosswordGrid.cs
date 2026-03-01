@@ -44,7 +44,9 @@ public class CrosswordGrid : MonoBehaviour
     private Dictionary<string, List<Vector2Int>> wordCellPositions = new Dictionary<string, List<Vector2Int>>();
     private HashSet<string> revealedWords = new HashSet<string>();
     private LevelData currentLevel;
-    private Sprite roundedCellSprite;
+    private Material roundedRectMaterial;
+    private Material cellBorderMaterial;
+    private Material cellFillMaterial;
 
     private float ComputeCellSize(int gridWidth, int gridHeight)
     {
@@ -64,11 +66,25 @@ public class CrosswordGrid : MonoBehaviour
         ClearGrid();
         currentLevel = levelData;
 
-        // Generate rounded sprite once for all cells
-        if (roundedCellSprite == null)
-            roundedCellSprite = GenerateRoundedRectSprite(64, 8);
-
         float cellSize = ComputeCellSize(levelData.gridWidth, levelData.gridHeight);
+
+        // Create SDF rounded rect materials for this cell size
+        if (roundedRectMaterial == null)
+        {
+            var shader = Shader.Find("UI/RoundedRect");
+            if (shader != null)
+                roundedRectMaterial = new Material(shader);
+        }
+        if (roundedRectMaterial != null)
+        {
+            float innerSize = cellSize - cellBorderWidth * 2f;
+            cellBorderMaterial = new Material(roundedRectMaterial);
+            cellBorderMaterial.SetVector("_RectSize", new Vector4(cellSize, cellSize, 0, 0));
+            cellBorderMaterial.SetFloat("_Radius", 6f);
+            cellFillMaterial = new Material(roundedRectMaterial);
+            cellFillMaterial.SetVector("_RectSize", new Vector4(innerSize, innerSize, 0, 0));
+            cellFillMaterial.SetFloat("_Radius", 4f);
+        }
 
         // Center the grid in the container
         float totalWidth = levelData.gridWidth * (cellSize + cellSpacing) - cellSpacing;
@@ -103,11 +119,11 @@ public class CrosswordGrid : MonoBehaviour
                     float yPos = -(pos.y * (cellSize + cellSpacing) - totalHeight * 0.5f + cellSize * 0.5f);
                     rt.anchoredPosition = new Vector2(xPos, yPos);
 
-                    // Outer image = black border with rounded corners
+                    // Outer image = black border with rounded corners (SDF)
                     Image border = cellGO.GetComponent<Image>();
                     border.color = Color.black;
-                    border.sprite = roundedCellSprite;
-                    border.type = Image.Type.Sliced;
+                    if (cellBorderMaterial != null)
+                        border.material = cellBorderMaterial;
 
                     // Inner fill image for the actual tile color
                     var fillGO = new GameObject("Fill");
@@ -119,8 +135,8 @@ public class CrosswordGrid : MonoBehaviour
                     fillRT.offsetMax = new Vector2(-cellBorderWidth, -cellBorderWidth);
                     Image bg = fillGO.AddComponent<Image>();
                     bg.color = cellDefaultColor;
-                    bg.sprite = roundedCellSprite;
-                    bg.type = Image.Type.Sliced;
+                    if (cellFillMaterial != null)
+                        bg.material = cellFillMaterial;
                     bg.raycastTarget = false;
 
                     // Move LetterText to render on top of fill
@@ -281,37 +297,4 @@ public class CrosswordGrid : MonoBehaviour
         return result;
     }
 
-    private Sprite GenerateRoundedRectSprite(int size, int radius)
-    {
-        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
-        tex.wrapMode = TextureWrapMode.Clamp;
-        tex.filterMode = FilterMode.Bilinear;
-        Color white = Color.white;
-        Color clear = new Color(1f, 1f, 1f, 0f);
-
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float dx = 0f, dy = 0f;
-                bool inCorner = false;
-                if (x < radius && y < radius) { dx = radius - x; dy = radius - y; inCorner = true; }
-                else if (x >= size - radius && y < radius) { dx = x - (size - radius - 1); dy = radius - y; inCorner = true; }
-                else if (x < radius && y >= size - radius) { dx = radius - x; dy = y - (size - radius - 1); inCorner = true; }
-                else if (x >= size - radius && y >= size - radius) { dx = x - (size - radius - 1); dy = y - (size - radius - 1); inCorner = true; }
-
-                if (inCorner)
-                {
-                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
-                    if (dist > radius) tex.SetPixel(x, y, clear);
-                    else if (dist > radius - 1.5f) tex.SetPixel(x, y, new Color(1f, 1f, 1f, 1f - (dist - (radius - 1.5f)) / 1.5f));
-                    else tex.SetPixel(x, y, white);
-                }
-                else tex.SetPixel(x, y, white);
-            }
-        }
-        tex.Apply();
-        Vector4 border = new Vector4(radius, radius, radius, radius);
-        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
-    }
 }
