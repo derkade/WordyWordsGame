@@ -112,10 +112,7 @@ public static class RebuildDefinitionPanel
         scrollRT.anchorMax = Vector2.one;
         scrollRT.offsetMin = new Vector2(10, 10);
         scrollRT.offsetMax = new Vector2(-10, -90);
-        var scrollImg = scrollGO.AddComponent<Image>();
-        scrollImg.color = new Color(0, 0, 0, 0); // transparent mask
-        var mask = scrollGO.AddComponent<Mask>();
-        mask.showMaskGraphic = false;
+        scrollGO.AddComponent<RectMask2D>();
         var scrollRect = scrollGO.AddComponent<ScrollRect>();
         scrollRect.horizontal = false;
         scrollRect.movementType = ScrollRect.MovementType.Elastic;
@@ -150,6 +147,9 @@ public static class RebuildDefinitionPanel
         defTMP.raycastTarget = false;
         defTMP.margin = new Vector4(10, 0, 10, 0);
         defTMP.enableWordWrapping = true;
+        // ContentSizeFitter on text so it auto-sizes height from content
+        var defSizer = defGO.AddComponent<ContentSizeFitter>();
+        defSizer.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         // === Loading Text ===
         var loadingGO = CreateUIObject("LoadingText", innerGO.transform);

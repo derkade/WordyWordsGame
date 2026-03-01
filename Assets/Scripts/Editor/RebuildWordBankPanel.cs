@@ -105,10 +105,7 @@ public static class RebuildWordBankPanel
         scrollRT.anchorMax = Vector2.one;
         scrollRT.offsetMin = new Vector2(10, 10);
         scrollRT.offsetMax = new Vector2(-10, -75);
-        var scrollImg = scrollGO.AddComponent<Image>();
-        scrollImg.color = new Color(0, 0, 0, 0);
-        var mask = scrollGO.AddComponent<Mask>();
-        mask.showMaskGraphic = false;
+        scrollGO.AddComponent<RectMask2D>();
         var scrollRect = scrollGO.AddComponent<ScrollRect>();
         scrollRect.horizontal = false;
         scrollRect.movementType = ScrollRect.MovementType.Elastic;
@@ -141,8 +138,12 @@ public static class RebuildWordBankPanel
         textTMP.color = Color.white;
         textTMP.alignment = TextAlignmentOptions.TopLeft;
         textTMP.raycastTarget = true; // needed for link clicks
+        textTMP.enableWordWrapping = true;
         textTMP.margin = new Vector4(15, 10, 15, 10);
         textTMP.lineSpacing = 15;
+        // ContentSizeFitter on text so it auto-sizes height from content
+        var textSizer = textGO.AddComponent<ContentSizeFitter>();
+        textSizer.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         // Add WordBankClickHandler
         var clickHandler = textGO.AddComponent<WordBankClickHandler>();
