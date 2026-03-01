@@ -20,11 +20,10 @@ public class DefinitionPanel : MonoBehaviour
     [Tooltip("Loading indicator shown while fetching")]
     [SerializeField] private GameObject loadingIndicator;
 
-    private void Start()
+    private void Awake()
     {
         if (closeButton != null)
             closeButton.onClick.AddListener(Hide);
-        gameObject.SetActive(false);
     }
 
     public void Show(string word)

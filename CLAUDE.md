@@ -107,6 +107,9 @@ When context usage is getting high, or before a natural stopping point, **always
 
 This is critical because conversation context compacts over long sessions and memory is lost. The git log serves as durable memory that survives across sessions and machines. Claude Code can always run `git log --oneline -20` or `git log -1 --format=%B` to recover context from previous work.
 
+### Debugging Stubborn Problems
+If a problem is continually acting unresolved, decompose the problem into independent logical components. Validate each one individually. Then, synthesize your final answer from the validated pieces.
+
 ### Before Ending a Session
 Always ensure all meaningful work is committed and pushed before wrapping up. An uncommitted change that gets lost to compaction is wasted effort.
 

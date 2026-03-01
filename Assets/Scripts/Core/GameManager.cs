@@ -335,6 +335,8 @@ public class GameManager : MonoBehaviour
     {
         if (wordBankPanel == null) return;
 
+        wordBankPanel.SetActive(true);
+
         if (wordBankText != null)
         {
             if (foundExtraWords.Count > 0)
@@ -352,9 +354,8 @@ public class GameManager : MonoBehaviour
             {
                 wordBankText.text = "No bonus words found yet.";
             }
+            wordBankText.ForceMeshUpdate();
         }
-
-        wordBankPanel.SetActive(true);
         wordBankPanel.transform.SetAsLastSibling();
         if (wordBankCG != null)
         {

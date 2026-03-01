@@ -8,6 +8,7 @@ public class WordBankClickHandler : MonoBehaviour, IPointerClickHandler
 {
     private TMP_Text textComponent;
     private Canvas parentCanvas;
+    private Camera cachedCamera;
 
     public event Action<string> OnWordClicked;
 
@@ -15,18 +16,16 @@ public class WordBankClickHandler : MonoBehaviour, IPointerClickHandler
     {
         textComponent = GetComponent<TMP_Text>();
         parentCanvas = GetComponentInParent<Canvas>();
+        if (parentCanvas != null && parentCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
+            cachedCamera = parentCanvas.worldCamera;
     }
 
     public void OnPointerClick(PointerEventData eventData)
     {
         if (textComponent == null) return;
 
-        Camera cam = null;
-        if (parentCanvas != null && parentCanvas.renderMode != RenderMode.ScreenSpaceOverlay)
-            cam = parentCanvas.worldCamera;
-
         int linkIndex = TMP_TextUtilities.FindIntersectingLink(
-            textComponent, eventData.position, cam);
+            textComponent, eventData.position, cachedCamera);
 
         if (linkIndex == -1) return;
 
