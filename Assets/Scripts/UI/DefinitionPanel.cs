@@ -259,10 +259,22 @@ public class DefinitionPanel : MonoBehaviour
         }
 
         definitionText.text = sb.ToString().TrimEnd();
+        StartCoroutine(RebuildScrollLayout());
+    }
+
+    private IEnumerator RebuildScrollLayout()
+    {
+        // Wait a frame for TMP to calculate text geometry
+        yield return null;
+
         definitionText.ForceMeshUpdate();
-        LayoutRebuilder.ForceRebuildLayoutImmediate(definitionText.rectTransform);
+
         if (scrollRect != null && scrollRect.content != null)
+        {
             LayoutRebuilder.ForceRebuildLayoutImmediate(scrollRect.content);
+            // Reset scroll position to top after content is sized
+            scrollRect.verticalNormalizedPosition = 1f;
+        }
     }
 
     public void Hide()

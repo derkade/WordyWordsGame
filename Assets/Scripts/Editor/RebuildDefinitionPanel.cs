@@ -129,6 +129,12 @@ public static class RebuildDefinitionPanel
         contentRT.pivot = new Vector2(0.5f, 1);
         contentRT.anchoredPosition = Vector2.zero;
         contentRT.sizeDelta = new Vector2(0, 0);
+        var contentLayout = contentGO.AddComponent<VerticalLayoutGroup>();
+        contentLayout.childAlignment = TextAnchor.UpperLeft;
+        contentLayout.childControlWidth = true;
+        contentLayout.childControlHeight = true;
+        contentLayout.childForceExpandWidth = true;
+        contentLayout.childForceExpandHeight = false;
         var contentSizer = contentGO.AddComponent<ContentSizeFitter>();
         contentSizer.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
         scrollRect.content = contentRT;
@@ -150,9 +156,6 @@ public static class RebuildDefinitionPanel
         defTMP.raycastTarget = false;
         defTMP.margin = new Vector4(10, 0, 10, 0);
         defTMP.enableWordWrapping = true;
-        // ContentSizeFitter on text so it auto-sizes height from content
-        var defSizer = defGO.AddComponent<ContentSizeFitter>();
-        defSizer.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         // === Loading Text ===
         var loadingGO = CreateUIObject("LoadingText", innerGO.transform);

@@ -337,7 +337,13 @@ public class CrosswordGrid : MonoBehaviour
         var cell = cells[pos];
         if (!cell.isRevealed) return;
 
-        var words = cell.belongsToWords;
+        // Only consider fully revealed words
+        var words = new List<string>();
+        foreach (string w in cell.belongsToWords)
+        {
+            if (revealedWords.Contains(w))
+                words.Add(w);
+        }
         if (words.Count == 0) return;
 
         string chosenWord;
