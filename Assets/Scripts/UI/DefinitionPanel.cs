@@ -71,8 +71,8 @@ public class DefinitionPanel : MonoBehaviour
         scrollbarRT.anchorMin = new Vector2(1f, 0f);
         scrollbarRT.anchorMax = new Vector2(1f, 1f);
         scrollbarRT.pivot = new Vector2(1f, 0.5f);
-        scrollbarRT.sizeDelta = new Vector2(8f, 0f);
-        scrollbarRT.anchoredPosition = Vector2.zero;
+        scrollbarRT.sizeDelta = new Vector2(12f, -20f);
+        scrollbarRT.anchoredPosition = new Vector2(-6f, 0f);
 
         // Track background (subtle)
         var trackImage = scrollbarGO.AddComponent<Image>();

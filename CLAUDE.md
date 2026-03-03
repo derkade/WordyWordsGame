@@ -67,6 +67,40 @@ Assets/Scripts/
 - `Assets/Levels/` — Hand-crafted levels (Level_1 through Level_3)
 - `Assets/Levels/Generated/` — Auto-generated levels from editor tool
 
+## Word List Filtering Tools
+Python scripts in `tools/` for filtering word lists against the Free Dictionary API (dictionaryapi.dev).
+
+### Pipeline (already completed once, results are the current word lists)
+1. **API filter** — check every word against dictionaryapi.dev, keep only words that return HTTP 200
+2. **Frequency filter** — cross-reference against OpenSubtitles top 20K (`tools/en_50k.txt`)
+3. **Proper noun filter** — remove name-only words using `tools/first_names.txt`
+4. **Profanity filter** — excluded to `tools/wordlist_spicy.txt`
+
+### Scripts
+- `tools/filter_wordlist.py` — filters `wordlist.txt` (async, 5 concurrent requests, resumable)
+- `tools/filter_commonwords.py` — filters `commonwords.txt` (same approach)
+- Both save progress to `tools/filter_progress.json` / `tools/filter_common_progress.json`
+- Output goes to `*_filtered.txt`; manually rename to apply
+
+### Re-running the filters
+The current lists have ~15K words total. A fresh re-run takes ~1-2 hours at concurrency 5.
+```
+# Delete old progress so it checks fresh
+rm tools/filter_progress.json tools/filter_common_progress.json
+# Run (requires Python 3 + aiohttp: pip install aiohttp)
+python tools/filter_commonwords.py
+python tools/filter_wordlist.py
+# Review output, then rename filtered files to apply
+mv Assets/Resources/commonwords_filtered.txt Assets/Resources/commonwords.txt
+mv Assets/Resources/wordlist_filtered.txt Assets/Resources/wordlist.txt
+```
+
+### Known issues
+- The Free Dictionary API is inconsistent — some words return 200 on one run and 404 on another
+- After max retries (8), words are kept by "benefit of the doubt" which can let bad words through
+- Words like VER, SUR, SER slipped through the original run; manually removed 2026-03-03
+- STEAD was missing from both lists; manually added 2026-03-03
+
 ## Prefabs
 - `GridCell` — Single crossword grid cell (Image + TMP_Text child)
 - `LetterTilePrefab` — Circular letter tile for the wheel (Image + TMP_Text + LetterTile component)

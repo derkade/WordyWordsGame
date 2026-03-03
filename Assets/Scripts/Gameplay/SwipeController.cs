@@ -222,6 +222,13 @@ public class SwipeController : MonoBehaviour, IPointerUpHandler, IPointerDownHan
         swipeLine.UpdateLine(positions, localPos);
     }
 
+    public void MarkWordAsFound(string word)
+    {
+        string upper = word.ToUpper();
+        if (gridWords.Contains(upper))
+            foundGridWords.Add(upper);
+    }
+
     public bool AllGridWordsFound => foundGridWords.Count >= gridWords.Count;
     public int FoundExtraWordCount => foundExtraWords.Count;
 }

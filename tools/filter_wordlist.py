@@ -17,10 +17,10 @@ PROGRESS_PATH = os.path.join(os.path.dirname(__file__), "filter_progress.json")
 OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "..", "Assets", "Resources", "wordlist_filtered.txt")
 
 API_URL = "https://api.dictionaryapi.dev/api/v2/entries/en/{}"
-CONCURRENCY = 15
-SAVE_INTERVAL = 200  # save progress every N words checked
-RETRY_DELAY = 3.0
-MAX_RETRIES = 5
+CONCURRENCY = 5
+SAVE_INTERVAL = 100  # save progress every N words checked
+RETRY_DELAY = 5.0
+MAX_RETRIES = 8
 
 
 def load_words(path):

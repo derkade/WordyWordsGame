@@ -244,7 +244,7 @@ public class CrosswordGrid : MonoBehaviour
         yield return TweenHelper.PunchScale(target, Vector3.one * 0.2f, 0.3f);
     }
 
-    public bool HintRevealCell()
+    public List<string> HintRevealCell()
     {
         // Collect all unrevealed cells
         var unrevealed = new List<Vector2Int>();
@@ -254,7 +254,7 @@ public class CrosswordGrid : MonoBehaviour
                 unrevealed.Add(kvp.Key);
         }
 
-        if (unrevealed.Count == 0) return false;
+        if (unrevealed.Count == 0) return null;
 
         // Pick a random unrevealed cell
         Vector2Int pos = unrevealed[Random.Range(0, unrevealed.Count)];
@@ -265,6 +265,9 @@ public class CrosswordGrid : MonoBehaviour
         StartCoroutine(TweenHelper.PunchScale(cell.rectTransform, Vector3.one * 0.3f, 0.4f));
 
         // Check if any word is now fully revealed
+        // Returns empty list if cell revealed but no word completed;
+        // words added to list if hint completed them
+        var completedWords = new List<string>();
         foreach (string wordName in cell.belongsToWords)
         {
             if (revealedWords.Contains(wordName)) continue;
@@ -280,10 +283,13 @@ public class CrosswordGrid : MonoBehaviour
             }
 
             if (allRevealed)
+            {
                 revealedWords.Add(wordName);
+                completedWords.Add(wordName);
+            }
         }
 
-        return true;
+        return completedWords;
     }
 
     public bool IsComplete()

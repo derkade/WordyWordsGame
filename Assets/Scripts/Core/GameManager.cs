@@ -302,9 +302,26 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        if (crosswordGrid.HintRevealCell())
+        var completedWords = crosswordGrid.HintRevealCell();
+        if (completedWords != null)
         {
             AddCoins(-hintCost);
+
+            // Fire effects for any words completed by this hint
+            foreach (string word in completedWords)
+            {
+                swipeController.MarkWordAsFound(word);
+                AddCoins(coinsPerWord);
+
+                if (correctWordParticles != null)
+                {
+                    var cellTransforms = crosswordGrid.GetWordCellTransforms(word);
+                    if (cellTransforms.Count > 0)
+                        correctWordParticles.PlaySequence(cellTransforms, 0.1f);
+                    else
+                        correctWordParticles.Play();
+                }
+            }
 
             // Check level complete after hint
             if (crosswordGrid.IsComplete())
