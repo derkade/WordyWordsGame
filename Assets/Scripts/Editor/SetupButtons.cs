@@ -18,10 +18,6 @@ public static class SetupButtons
         }
         if (buttonBar == null) { Debug.LogError("ButtonBar not found!"); return; }
 
-        // Create SDF rounded rect material
-        var shader = Shader.Find("UI/RoundedRect");
-        if (shader == null) { Debug.LogError("UI/RoundedRect shader not found!"); return; }
-
         // Find buttons
         Button hintBtn = null, wordBankBtn = null;
         foreach (Transform child in buttonBar)
@@ -31,8 +27,8 @@ public static class SetupButtons
         }
 
         float width = 180f, height = 60f;
-        if (hintBtn != null) SetupButton(hintBtn.gameObject, shader, width, height);
-        if (wordBankBtn != null) SetupButton(wordBankBtn.gameObject, shader, width, height);
+        if (hintBtn != null) SetupButton(hintBtn.gameObject, width, height);
+        if (wordBankBtn != null) SetupButton(wordBankBtn.gameObject, width, height);
 
         EditorUtility.SetDirty(buttonBar.gameObject);
         UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(
@@ -41,26 +37,33 @@ public static class SetupButtons
         Debug.Log("Button Bar set up successfully!");
     }
 
-    private static void SetupButton(GameObject btnGO, Shader shader, float width, float height)
+    private static void SetupButton(GameObject btnGO, float width, float height)
     {
         // Set sizeDelta directly (layout group has childControl off)
         var rt = btnGO.GetComponent<RectTransform>();
         if (rt != null)
             rt.sizeDelta = new Vector2(width, height);
 
-        // Apply SDF rounded rect material
+        // Clear any old sprite/material
         var img = btnGO.GetComponent<Image>();
         if (img != null)
         {
-            // Clear any old sprite
             img.sprite = null;
             img.type = Image.Type.Simple;
-
-            var mat = new Material(shader);
-            mat.SetVector("_RectSize", new Vector4(width, height, 0, 0));
-            mat.SetFloat("_Radius", 14f);
-            img.material = mat;
+            img.material = null;
         }
+
+        // Add SDFRoundedImage component (remove old one if exists)
+        var existing = btnGO.GetComponent<SDFRoundedImage>();
+        if (existing != null)
+            Object.DestroyImmediate(existing);
+
+        var comp = btnGO.AddComponent<SDFRoundedImage>();
+        var so = new SerializedObject(comp);
+        so.FindProperty("cornerRadius").floatValue = 14f;
+        so.FindProperty("borderWidth").floatValue = 2f;
+        so.FindProperty("borderColor").colorValue = Color.black;
+        so.ApplyModifiedProperties();
 
         EditorUtility.SetDirty(btnGO);
     }

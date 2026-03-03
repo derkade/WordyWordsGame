@@ -33,14 +33,6 @@ public class DefinitionPanel : MonoBehaviour
     [Tooltip("ScrollRect for the definition content")]
     [SerializeField] private ScrollRect scrollRect;
 
-    [Header("Visual")]
-    [Tooltip("Outer frame Image for rounded gray border")]
-    [SerializeField] private Image outerFrame;
-    [Tooltip("Inner panel Image for rounded black content area")]
-    [SerializeField] private Image innerPanel;
-    [Tooltip("Corner radius for rounded rectangles")]
-    [SerializeField] private float cornerRadius = 24f;
-
     private List<string> wordList = new List<string>();
     private int currentWordIndex;
     private Scrollbar verticalScrollbar;
@@ -54,7 +46,6 @@ public class DefinitionPanel : MonoBehaviour
         if (nextButton != null)
             nextButton.onClick.AddListener(ShowNextWord);
 
-        ApplyRoundedCorners();
         CreateScrollbar();
     }
 
@@ -114,69 +105,6 @@ public class DefinitionPanel : MonoBehaviour
         {
             scrollRect.viewport.offsetMax = new Vector2(-10f, scrollRect.viewport.offsetMax.y);
         }
-    }
-
-    private void ApplyRoundedCorners()
-    {
-        Sprite roundedSprite = GenerateRoundedRectSprite(128, 128, (int)cornerRadius);
-        if (outerFrame != null)
-        {
-            outerFrame.sprite = roundedSprite;
-            outerFrame.type = Image.Type.Sliced;
-            outerFrame.pixelsPerUnitMultiplier = 1f;
-        }
-        if (innerPanel != null)
-        {
-            innerPanel.sprite = roundedSprite;
-            innerPanel.type = Image.Type.Sliced;
-            innerPanel.pixelsPerUnitMultiplier = 1f;
-        }
-    }
-
-    private Sprite GenerateRoundedRectSprite(int width, int height, int radius)
-    {
-        var tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
-        tex.wrapMode = TextureWrapMode.Clamp;
-        tex.filterMode = FilterMode.Bilinear;
-
-        Color white = Color.white;
-        Color clear = new Color(1f, 1f, 1f, 0f);
-
-        for (int y = 0; y < height; y++)
-        {
-            for (int x = 0; x < width; x++)
-            {
-                // Find distance to nearest corner circle center
-                float dx = 0f, dy = 0f;
-                bool inCorner = false;
-
-                if (x < radius && y < radius) { dx = radius - x; dy = radius - y; inCorner = true; }
-                else if (x >= width - radius && y < radius) { dx = x - (width - radius - 1); dy = radius - y; inCorner = true; }
-                else if (x < radius && y >= height - radius) { dx = radius - x; dy = y - (height - radius - 1); inCorner = true; }
-                else if (x >= width - radius && y >= height - radius) { dx = x - (width - radius - 1); dy = y - (height - radius - 1); inCorner = true; }
-
-                if (inCorner)
-                {
-                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
-                    if (dist > radius)
-                        tex.SetPixel(x, y, clear);
-                    else if (dist > radius - 1.5f)
-                        tex.SetPixel(x, y, new Color(1f, 1f, 1f, 1f - (dist - (radius - 1.5f)) / 1.5f));
-                    else
-                        tex.SetPixel(x, y, white);
-                }
-                else
-                {
-                    tex.SetPixel(x, y, white);
-                }
-            }
-        }
-
-        tex.Apply();
-
-        // 9-slice border = radius on all sides
-        Vector4 border = new Vector4(radius, radius, radius, radius);
-        return Sprite.Create(tex, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
     }
 
     /// <summary>

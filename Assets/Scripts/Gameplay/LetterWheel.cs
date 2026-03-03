@@ -32,25 +32,35 @@ public class LetterWheel : MonoBehaviour
     [Range(0.3f, 0.9f)]
     [SerializeField] private float fontSizeRatio = 0.6f;
 
+    [Header("Wheel Border")]
+    [Tooltip("Border thickness for the wheel circle")]
+    [SerializeField] private float wheelBorderWidth = 2f;
+    [Tooltip("Border color for the wheel circle")]
+    [SerializeField] private Color wheelBorderColor = Color.black;
+
     [Header("Shuffle Icon")]
     [Tooltip("Tint color of the shuffle icon in the wheel center")]
     [SerializeField] private Color shuffleIconColor = new Color(0.35f, 0.35f, 0.4f, 0.6f);
 
-    private static Sprite circleSprite;
-
     private List<LetterTile> tiles = new List<LetterTile>();
     private string currentLetters;
+    private Material wheelMaterial;
 
     private void Start()
     {
-        // Apply circle sprite to wheel background and render behind tiles
+        // Apply SDF rounded rect as circle for wheel background
         if (wheelBackground != null)
         {
-            if (circleSprite == null)
-                circleSprite = GenerateCircleSprite(256);
-            wheelBackground.sprite = circleSprite;
+            wheelBackground.sprite = null;
             wheelBackground.type = Image.Type.Simple;
             wheelBackground.transform.SetAsFirstSibling();
+
+            var shader = Shader.Find("UI/RoundedRect");
+            if (shader != null)
+            {
+                wheelMaterial = new Material(shader);
+                wheelBackground.material = wheelMaterial;
+            }
         }
 
         if (shuffleButton != null)
@@ -91,6 +101,14 @@ public class LetterWheel : MonoBehaviour
         {
             float bgSize = wheelRadius * 2f + tileSize * backgroundPadding;
             wheelBackground.rectTransform.sizeDelta = new Vector2(bgSize, bgSize);
+
+            if (wheelMaterial != null)
+            {
+                wheelMaterial.SetVector("_RectSize", new Vector4(bgSize, bgSize, 0, 0));
+                wheelMaterial.SetFloat("_Radius", bgSize * 0.5f);
+                wheelMaterial.SetFloat("_BorderWidth", wheelBorderWidth);
+                wheelMaterial.SetColor("_BorderColor", wheelBorderColor);
+            }
         }
 
         // Position shuffle button at center
@@ -238,26 +256,4 @@ public class LetterWheel : MonoBehaviour
         }
     }
 
-    private static Sprite GenerateCircleSprite(int size)
-    {
-        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
-        tex.wrapMode = TextureWrapMode.Clamp;
-        tex.filterMode = FilterMode.Bilinear;
-
-        float center = size * 0.5f;
-        float radius = center - 1f;
-
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float dist = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
-                float alpha = Mathf.Clamp01(radius - dist + 0.5f);
-                tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
-            }
-        }
-
-        tex.Apply();
-        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
-    }
 }

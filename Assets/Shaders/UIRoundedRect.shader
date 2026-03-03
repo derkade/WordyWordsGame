@@ -7,6 +7,8 @@ Shader "UI/RoundedRect"
         _Radius ("Corner Radius (px)", Float) = 8
         _Softness ("Edge Softness (px)", Float) = 1
         _RectSize ("Rect Size (px)", Vector) = (100, 100, 0, 0)
+        _BorderWidth ("Border Width (px)", Float) = 0
+        _BorderColor ("Border Color", Color) = (0,0,0,1)
 
         _StencilComp ("Stencil Comparison", Float) = 8
         _Stencil ("Stencil ID", Float) = 0
@@ -83,6 +85,8 @@ Shader "UI/RoundedRect"
             float _Radius;
             float _Softness;
             float4 _RectSize;
+            float _BorderWidth;
+            fixed4 _BorderColor;
 
             // SDF for a rounded rectangle centered at origin
             // p = point, b = half-size, r = corner radius
@@ -127,9 +131,29 @@ Shader "UI/RoundedRect"
                 // Anti-aliased edge using screen-space derivatives
                 float fw = fwidth(dist);
                 float edgeSoftness = max(_Softness, fw);
-                float alpha = 1.0 - smoothstep(-edgeSoftness, edgeSoftness, dist);
 
-                color.a *= alpha;
+                // Outer edge alpha (full shape boundary)
+                float outerAlpha = 1.0 - smoothstep(-edgeSoftness, edgeSoftness, dist);
+
+                // Inner edge alpha (inset by border width)
+                float borderW = max(_BorderWidth, 0.0);
+                float innerAlpha = (borderW > 0.001)
+                    ? 1.0 - smoothstep(-borderW - edgeSoftness, -borderW + edgeSoftness, dist)
+                    : outerAlpha;
+
+                // Composite fill over border
+                fixed4 fillCol = color;
+                fillCol.a *= innerAlpha;
+
+                fixed4 borderCol = _BorderColor;
+                borderCol.a *= (outerAlpha - innerAlpha);
+
+                float finalAlpha = fillCol.a + borderCol.a * (1.0 - fillCol.a);
+                float3 finalRGB = (finalAlpha > 0.001)
+                    ? (fillCol.rgb * fillCol.a + borderCol.rgb * borderCol.a * (1.0 - fillCol.a)) / finalAlpha
+                    : float3(0, 0, 0);
+
+                color = fixed4(finalRGB, finalAlpha);
 
                 // UI clipping
                 half2 m = saturate((_ClipRect.zw - _ClipRect.xy - abs(i.mask.xy)) * i.mask.zw);

@@ -31,8 +31,8 @@ public class CrosswordGrid : MonoBehaviour
     [SerializeField] private Color letterColor = new Color(0.1f, 0.1f, 0.15f, 1f);
     [Tooltip("Corner radius for the outer cell border in pixels")]
     [SerializeField] private float cellCornerRadius = 6f;
-    [Tooltip("Corner radius for the inner cell fill in pixels")]
-    [SerializeField] private float cellFillCornerRadius = 4f;
+    [Tooltip("Border color for each grid cell")]
+    [SerializeField] private Color cellBorderColor = Color.black;
 
     [Header("Debug")]
     [Tooltip("Show all letters on the grid (cheat mode)")]
@@ -57,8 +57,7 @@ public class CrosswordGrid : MonoBehaviour
     private LevelData currentLevel;
     private Camera canvasCamera;
     private Material roundedRectMaterial;
-    private Material cellBorderMaterial;
-    private Material cellFillMaterial;
+    private Material cellMaterial;
 
     private void Awake()
     {
@@ -96,13 +95,11 @@ public class CrosswordGrid : MonoBehaviour
         }
         if (roundedRectMaterial != null)
         {
-            float innerSize = cellSize - cellBorderWidth * 2f;
-            cellBorderMaterial = new Material(roundedRectMaterial);
-            cellBorderMaterial.SetVector("_RectSize", new Vector4(cellSize, cellSize, 0, 0));
-            cellBorderMaterial.SetFloat("_Radius", cellCornerRadius);
-            cellFillMaterial = new Material(roundedRectMaterial);
-            cellFillMaterial.SetVector("_RectSize", new Vector4(innerSize, innerSize, 0, 0));
-            cellFillMaterial.SetFloat("_Radius", cellFillCornerRadius);
+            cellMaterial = new Material(roundedRectMaterial);
+            cellMaterial.SetVector("_RectSize", new Vector4(cellSize, cellSize, 0, 0));
+            cellMaterial.SetFloat("_Radius", cellCornerRadius);
+            cellMaterial.SetFloat("_BorderWidth", cellBorderWidth);
+            cellMaterial.SetColor("_BorderColor", cellBorderColor);
         }
 
         // Center the grid in the container
@@ -139,29 +136,13 @@ public class CrosswordGrid : MonoBehaviour
                     float yPos = -(pos.y * (cellSize + cellSpacing) - totalHeight * 0.5f + cellSize * 0.5f);
                     rt.anchoredPosition = new Vector2(xPos, yPos);
 
-                    // Outer image = black border with rounded corners (SDF)
-                    Image border = cellGO.GetComponent<Image>();
-                    border.color = Color.black;
-                    if (cellBorderMaterial != null)
-                        border.material = cellBorderMaterial;
-
-                    // Inner fill image for the actual tile color
-                    var fillGO = new GameObject("Fill");
-                    fillGO.transform.SetParent(cellGO.transform, false);
-                    RectTransform fillRT = fillGO.AddComponent<RectTransform>();
-                    fillRT.anchorMin = Vector2.zero;
-                    fillRT.anchorMax = Vector2.one;
-                    fillRT.offsetMin = new Vector2(cellBorderWidth, cellBorderWidth);
-                    fillRT.offsetMax = new Vector2(-cellBorderWidth, -cellBorderWidth);
-                    Image bg = fillGO.AddComponent<Image>();
+                    // Single image with SDF border support
+                    Image bg = cellGO.GetComponent<Image>();
                     bg.color = cellDefaultColor;
-                    if (cellFillMaterial != null)
-                        bg.material = cellFillMaterial;
-                    bg.raycastTarget = false;
+                    if (cellMaterial != null)
+                        bg.material = cellMaterial;
 
-                    // Move LetterText to render on top of fill
                     TMP_Text txt = cellGO.GetComponentInChildren<TMP_Text>();
-                    txt.transform.SetAsLastSibling();
                     txt.text = "";
                     txt.color = letterColor;
                     txt.fontSize = cellSize * 0.55f;

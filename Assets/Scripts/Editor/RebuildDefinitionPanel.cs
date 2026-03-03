@@ -57,6 +57,7 @@ public static class RebuildDefinitionPanel
         var outerImg = outerGO.AddComponent<Image>();
         outerImg.color = new Color(0.35f, 0.35f, 0.4f, 0.85f);
         outerImg.raycastTarget = false;
+        AddSDFRoundedImage(outerGO, 24f);
 
         // === Inner Panel (black, rounded) ===
         var innerGO = CreateUIObject("InnerPanel", outerGO.transform);
@@ -68,6 +69,7 @@ public static class RebuildDefinitionPanel
         var innerImg = innerGO.AddComponent<Image>();
         innerImg.color = new Color(0.08f, 0.08f, 0.1f, 1f);
         innerImg.raycastTarget = false;
+        AddSDFRoundedImage(innerGO, 24f);
 
         // === Word Title ===
         var titleGO = CreateUIObject("WordTitle", innerGO.transform);
@@ -183,10 +185,7 @@ public static class RebuildDefinitionPanel
         closeRT.sizeDelta = new Vector2(48, 48);
         var closeImg = closeGO.AddComponent<Image>();
         closeImg.color = new Color(0.4f, 0.4f, 0.4f, 0.9f);
-        // Reuse rounded rect sprite for circular button
-        Sprite closeBtnSprite = GenerateRoundedRectSpriteStatic(64, 64, 32);
-        closeImg.sprite = closeBtnSprite;
-        closeImg.type = Image.Type.Sliced;
+        AddSDFRoundedImage(closeGO, 24f);
         var closeBtn = closeGO.AddComponent<Button>();
         var closeBtnColors = closeBtn.colors;
         closeBtnColors.highlightedColor = new Color(0.6f, 0.3f, 0.3f, 1f);
@@ -300,9 +299,6 @@ public static class RebuildDefinitionPanel
         so.FindProperty("nextButton").objectReferenceValue = nextBtn;
         so.FindProperty("navCountText").objectReferenceValue = countTMP;
         so.FindProperty("navBar").objectReferenceValue = navGO;
-        so.FindProperty("outerFrame").objectReferenceValue = outerImg;
-        so.FindProperty("innerPanel").objectReferenceValue = innerImg;
-        so.FindProperty("cornerRadius").floatValue = 24f;
         so.FindProperty("scrollRect").objectReferenceValue = scrollRect;
         so.ApplyModifiedProperties();
 
@@ -313,36 +309,12 @@ public static class RebuildDefinitionPanel
         Debug.Log("Definition Panel rebuilt successfully!");
     }
 
-    private static Sprite GenerateRoundedRectSpriteStatic(int width, int height, int radius)
+    private static void AddSDFRoundedImage(GameObject go, float radius)
     {
-        var tex = new Texture2D(width, height, TextureFormat.RGBA32, false);
-        tex.wrapMode = TextureWrapMode.Clamp;
-        tex.filterMode = FilterMode.Bilinear;
-        Color white = Color.white;
-        Color clear = new Color(1f, 1f, 1f, 0f);
-        for (int y = 0; y < height; y++)
-        {
-            for (int x = 0; x < width; x++)
-            {
-                float dx = 0f, dy = 0f;
-                bool inCorner = false;
-                if (x < radius && y < radius) { dx = radius - x; dy = radius - y; inCorner = true; }
-                else if (x >= width - radius && y < radius) { dx = x - (width - radius - 1); dy = radius - y; inCorner = true; }
-                else if (x < radius && y >= height - radius) { dx = radius - x; dy = y - (height - radius - 1); inCorner = true; }
-                else if (x >= width - radius && y >= height - radius) { dx = x - (width - radius - 1); dy = y - (height - radius - 1); inCorner = true; }
-                if (inCorner)
-                {
-                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
-                    if (dist > radius) tex.SetPixel(x, y, clear);
-                    else if (dist > radius - 1.5f) tex.SetPixel(x, y, new Color(1f, 1f, 1f, 1f - (dist - (radius - 1.5f)) / 1.5f));
-                    else tex.SetPixel(x, y, white);
-                }
-                else tex.SetPixel(x, y, white);
-            }
-        }
-        tex.Apply();
-        Vector4 border = new Vector4(radius, radius, radius, radius);
-        return Sprite.Create(tex, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
+        var comp = go.AddComponent<SDFRoundedImage>();
+        var so = new SerializedObject(comp);
+        so.FindProperty("cornerRadius").floatValue = radius;
+        so.ApplyModifiedProperties();
     }
 
     private static GameObject CreateUIObject(string name, Transform parent)

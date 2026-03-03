@@ -54,8 +54,7 @@ public static class RebuildWordBankPanel
         outerImg.color = new Color(0.35f, 0.35f, 0.4f, 0.85f);
         outerImg.raycastTarget = false;
 
-        // Apply rounded sprite to outer
-        ApplyRoundedSprite(outerImg, 24);
+        AddSDFRoundedImage(outerGO, 24f);
 
         // === Inner Panel (black, rounded) ===
         var innerGO = CreateUI("InnerPanel", outerGO.transform);
@@ -67,7 +66,7 @@ public static class RebuildWordBankPanel
         var innerImg = innerGO.AddComponent<Image>();
         innerImg.color = new Color(0.08f, 0.08f, 0.1f, 1f);
         innerImg.raycastTarget = false;
-        ApplyRoundedSprite(innerImg, 24);
+        AddSDFRoundedImage(innerGO, 24f);
 
         // === Title ===
         var titleGO = CreateUI("WordBankTitle", innerGO.transform);
@@ -183,7 +182,7 @@ public static class RebuildWordBankPanel
         closeRT.sizeDelta = new Vector2(48, 48);
         var closeImg = closeGO.AddComponent<Image>();
         closeImg.color = new Color(0.4f, 0.4f, 0.4f, 0.9f);
-        ApplyRoundedSprite(closeImg, 20);
+        AddSDFRoundedImage(closeGO, 24f);
         var closeBtn = closeGO.AddComponent<Button>();
         var colors = closeBtn.colors;
         colors.highlightedColor = new Color(0.6f, 0.3f, 0.3f, 1f);
@@ -225,49 +224,12 @@ public static class RebuildWordBankPanel
         Debug.Log("Word Bank Panel rebuilt successfully!");
     }
 
-    private static void ApplyRoundedSprite(Image img, int radius)
+    private static void AddSDFRoundedImage(GameObject go, float radius)
     {
-        int size = 128;
-        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
-        tex.wrapMode = TextureWrapMode.Clamp;
-        tex.filterMode = FilterMode.Bilinear;
-
-        Color white = Color.white;
-        Color clear = new Color(1f, 1f, 1f, 0f);
-
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float dx = 0f, dy = 0f;
-                bool inCorner = false;
-
-                if (x < radius && y < radius) { dx = radius - x; dy = radius - y; inCorner = true; }
-                else if (x >= size - radius && y < radius) { dx = x - (size - radius - 1); dy = radius - y; inCorner = true; }
-                else if (x < radius && y >= size - radius) { dx = radius - x; dy = y - (size - radius - 1); inCorner = true; }
-                else if (x >= size - radius && y >= size - radius) { dx = x - (size - radius - 1); dy = y - (size - radius - 1); inCorner = true; }
-
-                if (inCorner)
-                {
-                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
-                    if (dist > radius)
-                        tex.SetPixel(x, y, clear);
-                    else if (dist > radius - 1.5f)
-                        tex.SetPixel(x, y, new Color(1f, 1f, 1f, 1f - (dist - (radius - 1.5f)) / 1.5f));
-                    else
-                        tex.SetPixel(x, y, white);
-                }
-                else
-                {
-                    tex.SetPixel(x, y, white);
-                }
-            }
-        }
-        tex.Apply();
-
-        Vector4 border = new Vector4(radius, radius, radius, radius);
-        img.sprite = Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, border);
-        img.type = Image.Type.Sliced;
+        var comp = go.AddComponent<SDFRoundedImage>();
+        var so = new SerializedObject(comp);
+        so.FindProperty("cornerRadius").floatValue = radius;
+        so.ApplyModifiedProperties();
     }
 
     private static GameObject CreateUI(string name, Transform parent)
