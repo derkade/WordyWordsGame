@@ -43,6 +43,7 @@ public class DefinitionPanel : MonoBehaviour
 
     private List<string> wordList = new List<string>();
     private int currentWordIndex;
+    private Scrollbar verticalScrollbar;
 
     private void Awake()
     {
@@ -54,6 +55,65 @@ public class DefinitionPanel : MonoBehaviour
             nextButton.onClick.AddListener(ShowNextWord);
 
         ApplyRoundedCorners();
+        CreateScrollbar();
+    }
+
+    private void CreateScrollbar()
+    {
+        if (scrollRect == null) return;
+
+        // Create scrollbar GameObject as sibling of scroll content area
+        var scrollbarGO = new GameObject("VerticalScrollbar");
+        scrollbarGO.transform.SetParent(scrollRect.transform.parent, false);
+
+        // Position on right edge of the scroll area
+        var scrollbarRT = scrollbarGO.AddComponent<RectTransform>();
+        scrollbarRT.anchorMin = new Vector2(1f, 0f);
+        scrollbarRT.anchorMax = new Vector2(1f, 1f);
+        scrollbarRT.pivot = new Vector2(1f, 0.5f);
+        scrollbarRT.sizeDelta = new Vector2(8f, 0f);
+        scrollbarRT.anchoredPosition = Vector2.zero;
+
+        // Track background (subtle)
+        var trackImage = scrollbarGO.AddComponent<Image>();
+        trackImage.color = new Color(1f, 1f, 1f, 0.05f);
+        trackImage.raycastTarget = true;
+
+        // Handle (sliding part)
+        var handleGO = new GameObject("Handle");
+        handleGO.transform.SetParent(scrollbarGO.transform, false);
+        var handleRT = handleGO.AddComponent<RectTransform>();
+        handleRT.anchorMin = Vector2.zero;
+        handleRT.anchorMax = Vector2.one;
+        handleRT.offsetMin = Vector2.zero;
+        handleRT.offsetMax = Vector2.zero;
+        var handleImage = handleGO.AddComponent<Image>();
+        handleImage.color = new Color(1f, 1f, 1f, 0.3f);
+        handleImage.raycastTarget = true;
+
+        // Scrollbar component
+        verticalScrollbar = scrollbarGO.AddComponent<Scrollbar>();
+        verticalScrollbar.direction = Scrollbar.Direction.BottomToTop;
+        verticalScrollbar.handleRect = handleRT;
+        verticalScrollbar.targetGraphic = handleImage;
+
+        // Hover color block for handle
+        var cb = verticalScrollbar.colors;
+        cb.normalColor = new Color(1f, 1f, 1f, 0.3f);
+        cb.highlightedColor = new Color(1f, 1f, 1f, 0.5f);
+        cb.pressedColor = new Color(1f, 1f, 1f, 0.6f);
+        verticalScrollbar.colors = cb;
+
+        // Wire to ScrollRect
+        scrollRect.verticalScrollbar = verticalScrollbar;
+        scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport;
+        scrollRect.verticalScrollbarSpacing = 2f;
+
+        // Shrink scroll viewport to make room for scrollbar
+        if (scrollRect.viewport != null)
+        {
+            scrollRect.viewport.offsetMax = new Vector2(-10f, scrollRect.viewport.offsetMax.y);
+        }
     }
 
     private void ApplyRoundedCorners()

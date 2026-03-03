@@ -301,6 +301,11 @@ public class CrosswordGrid : MonoBehaviour
         return revealedWords.Contains(word.ToUpper());
     }
 
+    public List<string> GetRevealedWords()
+    {
+        return new List<string>(revealedWords);
+    }
+
     public int TotalCells => cells.Count;
 
     public int RevealedCellCount

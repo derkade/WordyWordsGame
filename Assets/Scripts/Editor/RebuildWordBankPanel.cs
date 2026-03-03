@@ -141,7 +141,7 @@ public static class RebuildWordBankPanel
         textTMP.color = Color.white;
         textTMP.alignment = TextAlignmentOptions.TopLeft;
         textTMP.raycastTarget = true; // needed for link clicks
-        textTMP.enableWordWrapping = true;
+        textTMP.textWrappingMode = TMPro.TextWrappingModes.Normal;
         textTMP.margin = new Vector4(15, 10, 15, 10);
         textTMP.lineSpacing = 15;
         // ContentSizeFitter on text so it auto-sizes height from content

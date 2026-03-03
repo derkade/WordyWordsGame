@@ -48,7 +48,7 @@ Assets/Scripts/
 - **Object pooling:** UISwipeLine and UIParticleEffect pool their visual elements
 - **Coroutine tweening:** TweenHelper provides PunchScale, ShakePosition, FadeTo, MoveTo, ScaleTo, ColorTo with easing curves (EaseOutQuad, EaseOutBack, EaseOutElastic)
 - **ScriptableObject levels:** LevelData assets can be hand-crafted or auto-generated
-- **Two-tier dictionary:** commonwords.txt (~5K common words) for seed selection and grid placement; wordlist.txt (~80K words) for bonus/extra word validation
+- **Two-tier dictionary:** commonwords.txt (~4800 common words) for seed selection and grid placement; wordlist.txt (~10K words) for bonus/extra word validation
 
 ### Level Generation
 - **Editor:** Tools > WordyWords > Level Generator (or Auto-Generate 3 Levels)
@@ -62,8 +62,8 @@ Assets/Scripts/
 - Scoring favors more intersections and compact bounding boxes
 
 ## Resources
-- `Assets/Resources/commonwords.txt` — ~5K common English words (uppercase, 3-7 letters)
-- `Assets/Resources/wordlist.txt` — ~80K English words for full dictionary validation
+- `Assets/Resources/commonwords.txt` — ~4800 common English words (uppercase, 3-7 letters)
+- `Assets/Resources/wordlist.txt` — ~10K English words for full dictionary validation (frequency-filtered)
 - `Assets/Levels/` — Hand-crafted levels (Level_1 through Level_3)
 - `Assets/Levels/Generated/` — Auto-generated levels from editor tool
 

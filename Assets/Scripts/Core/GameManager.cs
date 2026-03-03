@@ -342,7 +342,12 @@ public class GameManager : MonoBehaviour
     private void OnGridWordClicked(string word)
     {
         if (definitionPanel != null)
-            definitionPanel.Show(word);
+        {
+            var revealedWords = crosswordGrid.GetRevealedWords();
+            int index = revealedWords.IndexOf(word.ToUpper());
+            if (index < 0) index = 0;
+            definitionPanel.Show(word, revealedWords, index);
+        }
     }
 
     private void OnWordBankClicked()

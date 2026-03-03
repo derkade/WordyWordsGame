@@ -155,7 +155,7 @@ public static class RebuildDefinitionPanel
         defTMP.alignment = TextAlignmentOptions.TopLeft;
         defTMP.raycastTarget = false;
         defTMP.margin = new Vector4(10, 0, 10, 0);
-        defTMP.enableWordWrapping = true;
+        defTMP.textWrappingMode = TMPro.TextWrappingModes.Normal;
 
         // === Loading Text ===
         var loadingGO = CreateUIObject("LoadingText", innerGO.transform);
