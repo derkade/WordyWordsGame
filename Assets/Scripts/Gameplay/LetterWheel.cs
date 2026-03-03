@@ -38,7 +38,26 @@ public class LetterWheel : MonoBehaviour
     [Tooltip("Border color for the wheel circle")]
     [SerializeField] private Color wheelBorderColor = Color.black;
 
-    [Header("Shuffle Icon")]
+    [Header("Wheel Drop Shadow")]
+    [Tooltip("Shadow color for the wheel circle")]
+    [SerializeField] private Color wheelShadowColor = new Color(0f, 0f, 0f, 0.3f);
+    [Tooltip("Shadow offset in pixels (negative Y = down)")]
+    [SerializeField] private Vector2 wheelShadowOffset = new Vector2(0f, -3f);
+    [Tooltip("Shadow blur radius in pixels")]
+    [SerializeField] private float wheelShadowBlur = 5f;
+    [Tooltip("Extra padding around shape for shadow rendering")]
+    [SerializeField] private float wheelShadowExpand = 6f;
+
+    [Header("Wheel Inner Bevel")]
+    [Tooltip("How deep the bevel extends from the edge in pixels")]
+    [SerializeField] private float wheelBevelSize = 14f;
+    [Tooltip("Intensity of the highlight/shadow bevel effect")]
+    [Range(0f, 0.5f)]
+    [SerializeField] private float wheelBevelStrength = 0.2f;
+
+    [Header("Shuffle Button")]
+    [Tooltip("Size of the shuffle button in pixels")]
+    [SerializeField] private float shuffleButtonSize = 60f;
     [Tooltip("Tint color of the shuffle icon in the wheel center")]
     [SerializeField] private Color shuffleIconColor = new Color(0.35f, 0.35f, 0.4f, 0.6f);
 
@@ -100,22 +119,31 @@ public class LetterWheel : MonoBehaviour
         if (wheelBackground != null)
         {
             float bgSize = wheelRadius * 2f + tileSize * backgroundPadding;
-            wheelBackground.rectTransform.sizeDelta = new Vector2(bgSize, bgSize);
+            float shadowExp = Mathf.Max(wheelShadowExpand, 0f);
+            float expandedSize = bgSize + shadowExp * 2f;
+            wheelBackground.rectTransform.sizeDelta = new Vector2(expandedSize, expandedSize);
 
             if (wheelMaterial != null)
             {
-                wheelMaterial.SetVector("_RectSize", new Vector4(bgSize, bgSize, 0, 0));
-                wheelMaterial.SetFloat("_Radius", bgSize * 0.5f);
+                wheelMaterial.SetVector("_RectSize", new Vector4(expandedSize, expandedSize, 0, 0));
+                wheelMaterial.SetFloat("_Radius", expandedSize * 0.5f);
                 wheelMaterial.SetFloat("_BorderWidth", wheelBorderWidth);
                 wheelMaterial.SetColor("_BorderColor", wheelBorderColor);
+                wheelMaterial.SetColor("_ShadowColor", wheelShadowColor);
+                wheelMaterial.SetVector("_ShadowOffset", new Vector4(wheelShadowOffset.x, wheelShadowOffset.y, 0, 0));
+                wheelMaterial.SetFloat("_ShadowBlur", wheelShadowBlur);
+                wheelMaterial.SetFloat("_ShadowExpand", shadowExp);
+                wheelMaterial.SetFloat("_BevelSize", wheelBevelSize);
+                wheelMaterial.SetFloat("_BevelStrength", wheelBevelStrength);
             }
         }
 
-        // Position shuffle button at center
+        // Position and size shuffle button at center
         if (shuffleButton != null)
         {
             var btnRT = shuffleButton.GetComponent<RectTransform>();
             btnRT.anchoredPosition = Vector2.zero;
+            btnRT.sizeDelta = new Vector2(shuffleButtonSize, shuffleButtonSize);
         }
 
         for (int i = 0; i < count; i++)

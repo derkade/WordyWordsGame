@@ -26,9 +26,9 @@ public static class SetupButtons
             if (child.name == "WordBankButton") wordBankBtn = child.GetComponent<Button>();
         }
 
-        float width = 180f, height = 60f;
-        if (hintBtn != null) SetupButton(hintBtn.gameObject, width, height);
-        if (wordBankBtn != null) SetupButton(wordBankBtn.gameObject, width, height);
+        float width = 180f, height = 60f, expand = 6f;
+        if (hintBtn != null) SetupButton(hintBtn.gameObject, width, height, expand);
+        if (wordBankBtn != null) SetupButton(wordBankBtn.gameObject, width, height, expand);
 
         EditorUtility.SetDirty(buttonBar.gameObject);
         UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(
@@ -37,12 +37,12 @@ public static class SetupButtons
         Debug.Log("Button Bar set up successfully!");
     }
 
-    private static void SetupButton(GameObject btnGO, float width, float height)
+    private static void SetupButton(GameObject btnGO, float width, float height, float expand)
     {
-        // Set sizeDelta directly (layout group has childControl off)
+        // Expand sizeDelta to include shadow padding
         var rt = btnGO.GetComponent<RectTransform>();
         if (rt != null)
-            rt.sizeDelta = new Vector2(width, height);
+            rt.sizeDelta = new Vector2(width + expand * 2f, height + expand * 2f);
 
         // Clear any old sprite/material
         var img = btnGO.GetComponent<Image>();
@@ -63,6 +63,12 @@ public static class SetupButtons
         so.FindProperty("cornerRadius").floatValue = 14f;
         so.FindProperty("borderWidth").floatValue = 2f;
         so.FindProperty("borderColor").colorValue = Color.black;
+        so.FindProperty("shadowColor").colorValue = new Color(0, 0, 0, 0.3f);
+        so.FindProperty("shadowOffset").vector2Value = new Vector2(0, -3f);
+        so.FindProperty("shadowBlur").floatValue = 5f;
+        so.FindProperty("shadowExpand").floatValue = expand;
+        so.FindProperty("bevelSize").floatValue = 10f;
+        so.FindProperty("bevelStrength").floatValue = 0.2f;
         so.ApplyModifiedProperties();
 
         EditorUtility.SetDirty(btnGO);
