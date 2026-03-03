@@ -57,7 +57,9 @@ public static class RebuildDefinitionPanel
         var outerImg = outerGO.AddComponent<Image>();
         outerImg.color = new Color(0.35f, 0.35f, 0.4f, 0.85f);
         outerImg.raycastTarget = false;
-        AddSDFRoundedImage(outerGO, 24f);
+        AddSDFRoundedImage(outerGO, 24f, shadowExpand: 6f, shadowBlur: 5f,
+            shadowColor: new Color(0, 0, 0, 0.3f), shadowOffset: new Vector2(0, -3f),
+            bevelSize: 14f, bevelStrength: 0.25f);
 
         // === Inner Panel (black, rounded) ===
         var innerGO = CreateUIObject("InnerPanel", outerGO.transform);
@@ -69,7 +71,7 @@ public static class RebuildDefinitionPanel
         var innerImg = innerGO.AddComponent<Image>();
         innerImg.color = new Color(0.08f, 0.08f, 0.1f, 1f);
         innerImg.raycastTarget = false;
-        AddSDFRoundedImage(innerGO, 24f);
+        AddSDFRoundedImage(innerGO, 24f, bevelSize: 14f, bevelStrength: 0.25f);
 
         // === Word Title ===
         var titleGO = CreateUIObject("WordTitle", innerGO.transform);
@@ -309,11 +311,27 @@ public static class RebuildDefinitionPanel
         Debug.Log("Definition Panel rebuilt successfully!");
     }
 
-    private static void AddSDFRoundedImage(GameObject go, float radius)
+    private static void AddSDFRoundedImage(GameObject go, float radius,
+        float shadowExpand = 0f, float shadowBlur = 0f,
+        Color? shadowColor = null, Vector2? shadowOffset = null,
+        float bevelSize = 0f, float bevelStrength = 0f)
     {
         var comp = go.AddComponent<SDFRoundedImage>();
         var so = new SerializedObject(comp);
         so.FindProperty("cornerRadius").floatValue = radius;
+        if (shadowExpand > 0f)
+        {
+            so.FindProperty("shadowColor").colorValue = shadowColor ?? new Color(0, 0, 0, 0);
+            var off = shadowOffset ?? Vector2.zero;
+            so.FindProperty("shadowOffset").vector2Value = off;
+            so.FindProperty("shadowBlur").floatValue = shadowBlur;
+            so.FindProperty("shadowExpand").floatValue = shadowExpand;
+        }
+        if (bevelSize > 0f)
+        {
+            so.FindProperty("bevelSize").floatValue = bevelSize;
+            so.FindProperty("bevelStrength").floatValue = bevelStrength;
+        }
         so.ApplyModifiedProperties();
     }
 

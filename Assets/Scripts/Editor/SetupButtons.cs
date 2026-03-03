@@ -67,8 +67,8 @@ public static class SetupButtons
         so.FindProperty("shadowOffset").vector2Value = new Vector2(0, -3f);
         so.FindProperty("shadowBlur").floatValue = 5f;
         so.FindProperty("shadowExpand").floatValue = expand;
-        so.FindProperty("bevelSize").floatValue = 10f;
-        so.FindProperty("bevelStrength").floatValue = 0.2f;
+        so.FindProperty("bevelSize").floatValue = 14f;
+        so.FindProperty("bevelStrength").floatValue = 0.25f;
         so.ApplyModifiedProperties();
 
         EditorUtility.SetDirty(btnGO);
