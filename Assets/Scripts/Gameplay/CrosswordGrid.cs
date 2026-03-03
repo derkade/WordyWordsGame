@@ -24,15 +24,32 @@ public class CrosswordGrid : MonoBehaviour
     [Tooltip("Padding inside the grid container in pixels")]
     [SerializeField] private float gridPadding = 2f;
     [Tooltip("Background color of unrevealed cells")]
-    [SerializeField] private Color cellDefaultColor = new Color(0.3f, 0.3f, 0.5f, 1f);
+    [SerializeField] private Color cellDefaultColor = new Color(1f, 1f, 1f, 0.8f);
     [Tooltip("Background color of revealed cells")]
-    [SerializeField] private Color cellRevealedColor = new Color(1f, 1f, 1f, 1f);
+    [SerializeField] private Color cellRevealedColor = new Color(0.3f, 0.3f, 0.5f, 1f);
     [Tooltip("Text color for revealed letters")]
-    [SerializeField] private Color letterColor = new Color(0.1f, 0.1f, 0.15f, 1f);
+    [SerializeField] private Color letterColor = new Color(1f, 1f, 1f, 1f);
     [Tooltip("Corner radius for the outer cell border in pixels")]
     [SerializeField] private float cellCornerRadius = 6f;
     [Tooltip("Border color for each grid cell")]
     [SerializeField] private Color cellBorderColor = Color.black;
+
+    [Header("Drop Shadow")]
+    [Tooltip("Shadow color for grid cells")]
+    [SerializeField] private Color shadowColor = new Color(0f, 0f, 0f, 0.3f);
+    [Tooltip("Shadow offset in pixels (negative Y = down)")]
+    [SerializeField] private Vector2 shadowOffset = new Vector2(0f, -3f);
+    [Tooltip("Shadow blur radius in pixels")]
+    [SerializeField] private float shadowBlur = 5f;
+    [Tooltip("Extra padding around shape for shadow rendering")]
+    [SerializeField] private float shadowExpand = 6f;
+
+    [Header("Inner Bevel")]
+    [Tooltip("How deep the bevel extends from the edge in pixels")]
+    [SerializeField] private float bevelSize = 14f;
+    [Tooltip("Intensity of the highlight (top) and shadow (bottom)")]
+    [Range(0f, 0.5f)]
+    [SerializeField] private float bevelStrength = 0.25f;
 
     [Header("Debug")]
     [Tooltip("Show all letters on the grid (cheat mode)")]
@@ -93,13 +110,22 @@ public class CrosswordGrid : MonoBehaviour
             if (shader != null)
                 roundedRectMaterial = new Material(shader);
         }
+        float shadowExp = Mathf.Max(shadowExpand, 0f);
+        float expandedSize = cellSize + shadowExp * 2f;
+
         if (roundedRectMaterial != null)
         {
             cellMaterial = new Material(roundedRectMaterial);
-            cellMaterial.SetVector("_RectSize", new Vector4(cellSize, cellSize, 0, 0));
+            cellMaterial.SetVector("_RectSize", new Vector4(expandedSize, expandedSize, 0, 0));
             cellMaterial.SetFloat("_Radius", cellCornerRadius);
             cellMaterial.SetFloat("_BorderWidth", cellBorderWidth);
             cellMaterial.SetColor("_BorderColor", cellBorderColor);
+            cellMaterial.SetColor("_ShadowColor", shadowColor);
+            cellMaterial.SetVector("_ShadowOffset", new Vector4(shadowOffset.x, shadowOffset.y, 0, 0));
+            cellMaterial.SetFloat("_ShadowBlur", shadowBlur);
+            cellMaterial.SetFloat("_ShadowExpand", shadowExp);
+            cellMaterial.SetFloat("_BevelSize", bevelSize);
+            cellMaterial.SetFloat("_BevelStrength", bevelStrength);
         }
 
         // Center the grid in the container
@@ -129,7 +155,7 @@ public class CrosswordGrid : MonoBehaviour
                     cellGO.name = $"Cell_{pos.x}_{pos.y}";
 
                     RectTransform rt = cellGO.GetComponent<RectTransform>();
-                    rt.sizeDelta = new Vector2(cellSize, cellSize);
+                    rt.sizeDelta = new Vector2(expandedSize, expandedSize);
 
                     // Position: x goes right, y goes down (row 0 at top)
                     float xPos = pos.x * (cellSize + cellSpacing) - totalWidth * 0.5f + cellSize * 0.5f;
