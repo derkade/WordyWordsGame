@@ -143,6 +143,12 @@ When the user does ask to commit, commit messages should describe:
 
 Do NOT add co-author tags or AI attribution to commits. All commits should be authored solely by derkade.
 
+### After Any Script Change
+Always run `refresh_unity(compile="request")` followed by `read_console(types=["error"])` to verify compilation succeeds. Do not rely on the user switching to Unity to trigger recompilation. Always check the logs yourself.
+
+### Before Committing
+Always save the active scene via `manage_scene(action="save")` so any inspector changes are captured in the commit.
+
 ### Debugging Stubborn Problems
 If a problem is continually acting unresolved, decompose the problem into independent logical components. Validate each one individually. Then, synthesize your final answer from the validated pieces.
 

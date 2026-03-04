@@ -11,7 +11,12 @@ public class CoinStreakManager : MonoBehaviour
     [Header("Appearance")]
     [SerializeField] private Color streakColor = new Color(1f, 0.85f, 0.2f, 1f);
     [SerializeField] private float streakWidth = 3f;
-    [SerializeField] private float glowIntensity = 3f;
+
+    [Header("Glow")]
+    [Tooltip("Width multiplier for the additive glow layer (e.g. 3 = glow is 3x wider than core)")]
+    [SerializeField] private float glowSize = 3f;
+    [Tooltip("Glow shader intensity (HDR brightness for bloom)")]
+    [SerializeField] private float glowIntensity = 2f;
 
     [Header("Trail")]
     [SerializeField] private float trailSpan = 0.3f;
@@ -25,8 +30,15 @@ public class CoinStreakManager : MonoBehaviour
     [SerializeField] private float staggerDelay = 0.08f;
 
     private RectTransform rectT;
-    private GameObject[] poolObjects;
-    private CoinStreakTrail[] poolTrails;
+
+    // Core layer: opaque, hard-edged, default UI material
+    private GameObject[] poolCoreObjects;
+    private CoinStreakTrail[] poolCoreTrails;
+
+    // Glow layer: additive, wider, UI/Glow shader
+    private GameObject[] poolGlowObjects;
+    private CoinStreakTrail[] poolGlowTrails;
+
     private bool[] poolActive;
     private int[] availableStack;
     private int availableCount;
@@ -35,7 +47,7 @@ public class CoinStreakManager : MonoBehaviour
     {
         rectT = GetComponent<RectTransform>();
 
-        // Create glow material from UIGlow shader
+        // Create additive glow material
         Material glowMat = null;
         Shader glowShader = Shader.Find("UI/Glow");
         if (glowShader != null)
@@ -44,35 +56,49 @@ public class CoinStreakManager : MonoBehaviour
             glowMat.SetFloat("_GlowIntensity", glowIntensity);
         }
 
-        poolObjects = new GameObject[poolSize];
-        poolTrails = new CoinStreakTrail[poolSize];
+        poolCoreObjects = new GameObject[poolSize];
+        poolCoreTrails = new CoinStreakTrail[poolSize];
+        poolGlowObjects = new GameObject[poolSize];
+        poolGlowTrails = new CoinStreakTrail[poolSize];
         poolActive = new bool[poolSize];
         availableStack = new int[poolSize];
         availableCount = poolSize;
 
         for (int i = 0; i < poolSize; i++)
         {
-            var go = new GameObject($"CoinStreak_{i}", typeof(RectTransform), typeof(CanvasRenderer));
-            go.transform.SetParent(rectT, false);
+            // Glow layer (renders first, behind core)
+            var glowGO = CreateTrailGO($"CoinStreak_Glow_{i}", streakColor, streakWidth * glowSize, glowMat);
+            poolGlowObjects[i] = glowGO;
+            poolGlowTrails[i] = glowGO.GetComponent<CoinStreakTrail>();
 
-            var rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
+            // Core layer (renders on top, opaque)
+            var coreGO = CreateTrailGO($"CoinStreak_Core_{i}", streakColor, streakWidth, null);
+            poolCoreObjects[i] = coreGO;
+            poolCoreTrails[i] = coreGO.GetComponent<CoinStreakTrail>();
 
-            var streak = go.AddComponent<CoinStreakTrail>();
-            streak.Setup(streakColor, streakWidth, trailSamples, trailSpan);
-            if (glowMat != null)
-                streak.material = glowMat;
-
-            poolObjects[i] = go;
-            poolTrails[i] = streak;
             poolActive[i] = false;
             availableStack[i] = i;
-
-            go.SetActive(false);
         }
+    }
+
+    private GameObject CreateTrailGO(string name, Color color, float width, Material mat)
+    {
+        var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
+        go.transform.SetParent(rectT, false);
+
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+
+        var streak = go.AddComponent<CoinStreakTrail>();
+        streak.Setup(color, width, trailSamples, trailSpan);
+        if (mat != null)
+            streak.material = mat;
+
+        go.SetActive(false);
+        return go;
     }
 
     private void Update()
@@ -82,15 +108,15 @@ public class CoinStreakManager : MonoBehaviour
         {
             if (!poolActive[i]) continue;
 
-            bool finished = poolTrails[i].Tick(dt);
+            // Core drives the animation, glow syncs from it
+            bool finished = poolCoreTrails[i].Tick(dt);
+            poolGlowTrails[i].SyncFrom(poolCoreTrails[i]);
+
             if (finished)
                 ReturnToPool(i);
         }
     }
 
-    /// <summary>
-    /// Convert world position to local anchoredPosition, same as UIParticleEffect.WorldToLocal
-    /// </summary>
     private Vector2 WorldToLocal(Vector3 worldPos)
     {
         Canvas canvas = GetComponentInParent<Canvas>();
@@ -129,16 +155,67 @@ public class CoinStreakManager : MonoBehaviour
             else
                 arc = arcHeight;           // normal upward
 
-            poolObjects[idx].SetActive(true);
-            poolObjects[idx].transform.SetAsLastSibling();
-            poolTrails[idx].Initialize(startLocal, targetLocal, delay, travelDuration, arc);
+            // Initialize core (drives animation)
+            poolCoreObjects[idx].SetActive(true);
+            poolCoreTrails[idx].Initialize(startLocal, targetLocal, delay, travelDuration, arc);
+
+            // Glow copies the exact same Bezier path
+            poolGlowObjects[idx].SetActive(true);
+            poolGlowTrails[idx].CopyPathFrom(poolCoreTrails[idx]);
+
+            // Render order: glow behind, core on top
+            poolGlowObjects[idx].transform.SetAsLastSibling();
+            poolCoreObjects[idx].transform.SetAsLastSibling();
         }
+    }
+
+    /// <summary>
+    /// Play a single streak from one world position to another.
+    /// Optional color override (e.g., blue for bonus words, default gold for hints).
+    /// </summary>
+    public void PlaySingleStreak(Vector3 fromWorldPos, Vector3 toWorldPos, Color? colorOverride = null)
+    {
+        if (availableCount <= 0) return;
+
+        int idx = availableStack[--availableCount];
+        poolActive[idx] = true;
+
+        if (colorOverride.HasValue)
+        {
+            poolCoreTrails[idx].SetColor(colorOverride.Value);
+            poolGlowTrails[idx].SetColor(colorOverride.Value);
+        }
+
+        Vector2 startLocal = WorldToLocal(fromWorldPos);
+        Vector2 endLocal = WorldToLocal(toWorldPos);
+
+        float arc;
+        float roll = Random.value;
+        if (roll < 0.33f)
+            arc = -arcHeight;
+        else if (roll < 0.66f)
+            arc = arcHeight * 0.1f;
+        else
+            arc = arcHeight;
+
+        poolCoreObjects[idx].SetActive(true);
+        poolCoreTrails[idx].Initialize(startLocal, endLocal, 0f, travelDuration, arc);
+
+        poolGlowObjects[idx].SetActive(true);
+        poolGlowTrails[idx].CopyPathFrom(poolCoreTrails[idx]);
+
+        poolGlowObjects[idx].transform.SetAsLastSibling();
+        poolCoreObjects[idx].transform.SetAsLastSibling();
     }
 
     private void ReturnToPool(int idx)
     {
         poolActive[idx] = false;
-        poolObjects[idx].SetActive(false);
+        poolCoreObjects[idx].SetActive(false);
+        poolGlowObjects[idx].SetActive(false);
+        // Reset color back to default
+        poolCoreTrails[idx].SetColor(streakColor);
+        poolGlowTrails[idx].SetColor(streakColor);
         availableStack[availableCount++] = idx;
     }
 }

@@ -83,6 +83,7 @@ public class CrosswordGrid : MonoBehaviour
     private Material roundedRectMaterial;
     private Material cellMaterial;
     private Material revealedCellMaterial;
+    private float currentCellSize;
 
     private void Awake()
     {
@@ -122,6 +123,7 @@ public class CrosswordGrid : MonoBehaviour
         currentLevel = levelData;
 
         float cellSize = ComputeCellSize(levelData.gridWidth, levelData.gridHeight);
+        currentCellSize = cellSize;
 
         // Create SDF rounded rect materials for this cell size
         if (roundedRectMaterial == null)
@@ -266,6 +268,64 @@ public class CrosswordGrid : MonoBehaviour
         return true;
     }
 
+    /// <summary>
+    /// Marks a word as found in the revealed set without showing any letters.
+    /// Used when flying tiles handle the per-cell reveal instead.
+    /// </summary>
+    public bool MarkWordRevealed(string word)
+    {
+        string upper = word.ToUpper();
+        if (revealedWords.Contains(upper)) return false;
+        if (!wordCellPositions.ContainsKey(upper)) return false;
+        revealedWords.Add(upper);
+        return true;
+    }
+
+    /// <summary>
+    /// Visually reveals a single cell of a word by letter index.
+    /// The cell shows its letter, changes color, and punches.
+    /// </summary>
+    public void RevealSingleCell(string word, int letterIndex)
+    {
+        string upper = word.ToUpper();
+        if (!wordCellPositions.ContainsKey(upper)) return;
+
+        var positions = wordCellPositions[upper];
+        if (letterIndex < 0 || letterIndex >= positions.Count) return;
+
+        var cell = cells[positions[letterIndex]];
+        if (cell.isRevealed) return;
+
+        cell.isRevealed = true;
+        cell.letterText.text = cell.letter.ToString();
+        cell.background.color = cellRevealedColor;
+        if (revealedCellMaterial != null)
+            cell.background.material = revealedCellMaterial;
+
+        StartCoroutine(TweenHelper.PunchScale(cell.rectTransform, Vector3.one * 0.25f, 0.3f));
+    }
+
+    /// <summary>
+    /// Returns the current computed cell size (for flying tile sizing).
+    /// </summary>
+    public float GetCellSize()
+    {
+        return currentCellSize;
+    }
+
+    /// <summary>
+    /// Returns the unrevealed cell material (rounded rect with bevel) for flying tiles.
+    /// </summary>
+    public Material GetCellMaterial()
+    {
+        return cellMaterial;
+    }
+
+    public Color GetCellDefaultColor()
+    {
+        return cellDefaultColor;
+    }
+
     private IEnumerator DelayedPunch(Transform target, float delay)
     {
         if (delay > 0f)
@@ -273,8 +333,15 @@ public class CrosswordGrid : MonoBehaviour
         yield return TweenHelper.PunchScale(target, Vector3.one * 0.2f, 0.3f);
     }
 
-    public List<string> HintRevealCell()
+    /// <summary>
+    /// Picks a random unrevealed cell and marks it logically revealed,
+    /// but does NOT show the letter yet. Returns the cell's RectTransform
+    /// so the caller can animate a streak to it, then call RevealHintCell().
+    /// </summary>
+    public List<string> HintRevealCell(out RectTransform revealedCellRT)
     {
+        revealedCellRT = null;
+
         // Collect all unrevealed cells
         var unrevealed = new List<Vector2Int>();
         foreach (var kvp in cells)
@@ -289,15 +356,10 @@ public class CrosswordGrid : MonoBehaviour
         Vector2Int pos = unrevealed[Random.Range(0, unrevealed.Count)];
         var cell = cells[pos];
         cell.isRevealed = true;
-        cell.letterText.text = cell.letter.ToString();
-        cell.background.color = cellRevealedColor;
-        if (revealedCellMaterial != null)
-            cell.background.material = revealedCellMaterial;
-        StartCoroutine(TweenHelper.PunchScale(cell.rectTransform, Vector3.one * 0.3f, 0.4f));
+        revealedCellRT = cell.rectTransform;
+        pendingHintCell = cell;
 
         // Check if any word is now fully revealed
-        // Returns empty list if cell revealed but no word completed;
-        // words added to list if hint completed them
         var completedWords = new List<string>();
         foreach (string wordName in cell.belongsToWords)
         {
@@ -321,6 +383,34 @@ public class CrosswordGrid : MonoBehaviour
         }
 
         return completedWords;
+    }
+
+    private GridCell pendingHintCell;
+
+    /// <summary>
+    /// Shows the letter and plays the reveal animation for the pending hint cell.
+    /// Called by GameManager when the hint streak arrives.
+    /// </summary>
+    public void RevealHintCell()
+    {
+        if (pendingHintCell == null) return;
+
+        var cell = pendingHintCell;
+        cell.letterText.text = cell.letter.ToString();
+        cell.background.color = cellRevealedColor;
+        if (revealedCellMaterial != null)
+            cell.background.material = revealedCellMaterial;
+        StartCoroutine(TweenHelper.PunchScale(cell.rectTransform, Vector3.one * 0.3f, 0.4f));
+
+        lastRevealedHintRT = cell.rectTransform;
+        pendingHintCell = null;
+    }
+
+    private RectTransform lastRevealedHintRT;
+
+    public RectTransform GetLastRevealedCellTransform()
+    {
+        return lastRevealedHintRT;
     }
 
     public bool IsComplete()

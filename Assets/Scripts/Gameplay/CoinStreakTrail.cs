@@ -24,6 +24,10 @@ public class CoinStreakTrail : MaskableGraphic
     private float drainDuration;
     private float tailTAtDrainStart;
 
+    public float HeadT => headT;
+    public float TailT => tailT;
+    public bool IsDraining => draining;
+
     public void Setup(Color color, float width, int samples, float span)
     {
         baseColor = color;
@@ -31,6 +35,11 @@ public class CoinStreakTrail : MaskableGraphic
         sampleCount = Mathf.Max(2, samples);
         trailSpan = span;
         raycastTarget = false;
+    }
+
+    public void SetColor(Color color)
+    {
+        baseColor = color;
     }
 
     public void Initialize(Vector2 start, Vector2 end, float delay, float duration, float arcHeight)
@@ -54,6 +63,39 @@ public class CoinStreakTrail : MaskableGraphic
         draining = false;
         drainElapsed = 0f;
 
+        SetVerticesDirty();
+    }
+
+    /// <summary>
+    /// Copy Bezier and timing from another trail so both follow the exact same path.
+    /// </summary>
+    public void CopyPathFrom(CoinStreakTrail source)
+    {
+        p0 = source.p0;
+        p1 = source.p1;
+        p2 = source.p2;
+        p3 = source.p3;
+        startDelay = source.startDelay;
+        travelDuration = source.travelDuration;
+        elapsed = 0f;
+        moving = false;
+        headT = 0f;
+        tailT = 0f;
+        draining = false;
+        drainElapsed = 0f;
+
+        SetVerticesDirty();
+    }
+
+    /// <summary>
+    /// Sync head/tail from the driver trail instead of computing independently.
+    /// </summary>
+    public void SyncFrom(CoinStreakTrail driver)
+    {
+        headT = driver.headT;
+        tailT = driver.tailT;
+        moving = driver.moving;
+        draining = driver.draining;
         SetVerticesDirty();
     }
 
@@ -119,7 +161,7 @@ public class CoinStreakTrail : MaskableGraphic
             Vector2 pos = EvaluateBezier(t);
             Vector2 tangent = EvaluateTangent(t);
 
-            // Perpendicular: rotate tangent 90° CCW
+            // Perpendicular: rotate tangent 90 degrees CCW
             Vector2 perp = new Vector2(-tangent.y, tangent.x);
             if (perp.sqrMagnitude > 0.0001f)
                 perp.Normalize();
@@ -130,14 +172,11 @@ public class CoinStreakTrail : MaskableGraphic
             float taper = Mathf.Sin(frac * Mathf.PI);
             float w = halfWidth * taper;
 
-            // Solid alpha — shape is defined by width taper, not transparency
-            Color vc = baseColor;
-
             Vector2 left = pos + perp * w;
             Vector2 right = pos - perp * w;
 
-            vh.AddVert(new Vector3(left.x, left.y, 0f), vc, new Vector2(0f, frac));
-            vh.AddVert(new Vector3(right.x, right.y, 0f), vc, new Vector2(1f, frac));
+            vh.AddVert(new Vector3(left.x, left.y, 0f), baseColor, new Vector2(0f, frac));
+            vh.AddVert(new Vector3(right.x, right.y, 0f), baseColor, new Vector2(1f, frac));
         }
 
         for (int i = 0; i < samples; i++)
