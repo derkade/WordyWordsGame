@@ -45,7 +45,7 @@ crashlytics-build.properties
 *.iml
 
 # Claude Code
-.claude/
+.claude/settings.local.json
 *.slnx
 
 # OS generated

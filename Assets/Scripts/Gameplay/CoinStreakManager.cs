@@ -11,9 +11,15 @@ public class CoinStreakManager : MonoBehaviour
     [Header("Appearance")]
     [SerializeField] private Color streakColor = new Color(1f, 0.85f, 0.2f, 1f);
     [SerializeField] private float streakWidth = 3f;
-    [SerializeField] private float streakLength = 18f;
+    [SerializeField] private float glowIntensity = 3f;
+
+    [Header("Trail")]
+    [SerializeField] private float trailSpan = 0.3f;
+    [SerializeField] private int trailSamples = 10;
 
     [Header("Movement")]
+    public float TravelDuration => travelDuration;
+    public float StaggerDelay => staggerDelay;
     [SerializeField] private float travelDuration = 0.45f;
     [SerializeField] private float arcHeight = 0.25f;
     [SerializeField] private float staggerDelay = 0.08f;
@@ -29,31 +35,15 @@ public class CoinStreakManager : MonoBehaviour
     {
         rectT = GetComponent<RectTransform>();
 
-        // Generate a hard-edged streak texture: bright head fading to transparent tail
-        int texW = 64, texH = 16;
-        var tex = new Texture2D(texW, texH, TextureFormat.RGBA32, false);
-        tex.filterMode = FilterMode.Bilinear;
-        tex.wrapMode = TextureWrapMode.Clamp;
-        float halfH = texH * 0.5f;
-        for (int y = 0; y < texH; y++)
+        // Create glow material from UIGlow shader
+        Material glowMat = null;
+        Shader glowShader = Shader.Find("UI/Glow");
+        if (glowShader != null)
         {
-            for (int x = 0; x < texW; x++)
-            {
-                // Horizontal: solid head, fades only in last 30% (tail)
-                float xNorm = (float)x / (texW - 1);
-                float headFade = xNorm > 0.3f ? 1f : xNorm / 0.3f;
-                // Vertical: hard rectangular edge, 1px softening
-                float dy = Mathf.Abs(y - halfH + 0.5f) / halfH;
-                float edgeFade = dy < 0.7f ? 1f : Mathf.Clamp01((1f - dy) / 0.3f);
-                float alpha = headFade * edgeFade;
-                tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
-            }
+            glowMat = new Material(glowShader);
+            glowMat.SetFloat("_GlowIntensity", glowIntensity);
         }
-        tex.Apply();
-        // Pivot at right-center (head of streak) so rotation works naturally
-        var sprite = Sprite.Create(tex, new Rect(0, 0, texW, texH), new Vector2(1f, 0.5f));
 
-        // Initialize pool — same pattern as UIParticleEffect
         poolObjects = new GameObject[poolSize];
         poolTrails = new CoinStreakTrail[poolSize];
         poolActive = new bool[poolSize];
@@ -62,22 +52,19 @@ public class CoinStreakManager : MonoBehaviour
 
         for (int i = 0; i < poolSize; i++)
         {
-            var go = new GameObject($"CoinStreak_{i}", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            var go = new GameObject($"CoinStreak_{i}", typeof(RectTransform), typeof(CanvasRenderer));
             go.transform.SetParent(rectT, false);
 
             var rt = go.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0.5f, 0.5f);
-            rt.anchorMax = new Vector2(0.5f, 0.5f);
-            rt.pivot = new Vector2(0.5f, 0.5f);
-            rt.sizeDelta = new Vector2(streakLength, streakWidth);
-
-            var img = go.GetComponent<Image>();
-            img.sprite = sprite;
-            img.color = streakColor;
-            img.raycastTarget = false;
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
 
             var streak = go.AddComponent<CoinStreakTrail>();
-            streak.Setup(rt, img, streakColor, streakLength);
+            streak.Setup(streakColor, streakWidth, trailSamples, trailSpan);
+            if (glowMat != null)
+                streak.material = glowMat;
 
             poolObjects[i] = go;
             poolTrails[i] = streak;
@@ -116,11 +103,11 @@ public class CoinStreakManager : MonoBehaviour
         return localPos;
     }
 
-    public void PlayStreaks(List<RectTransform> cellTransforms, Transform target)
+    public void PlayStreaks(List<RectTransform> cellTransforms, Vector3 targetWorldPos)
     {
         if (cellTransforms == null || cellTransforms.Count == 0) return;
 
-        Vector2 targetLocal = WorldToLocal(target.position);
+        Vector2 targetLocal = WorldToLocal(targetWorldPos);
 
         for (int i = 0; i < cellTransforms.Count; i++)
         {
@@ -132,9 +119,19 @@ public class CoinStreakManager : MonoBehaviour
             Vector2 startLocal = WorldToLocal(cellTransforms[i].position);
             float delay = i * staggerDelay;
 
+            // Random arc variant: upward, mirrored downward, or straight
+            float arc;
+            float roll = Random.value;
+            if (roll < 0.33f)
+                arc = -arcHeight;          // mirrored downward
+            else if (roll < 0.66f)
+                arc = arcHeight * 0.1f;    // mostly straight
+            else
+                arc = arcHeight;           // normal upward
+
             poolObjects[idx].SetActive(true);
             poolObjects[idx].transform.SetAsLastSibling();
-            poolTrails[idx].Initialize(startLocal, targetLocal, delay, travelDuration, arcHeight);
+            poolTrails[idx].Initialize(startLocal, targetLocal, delay, travelDuration, arc);
         }
     }
 

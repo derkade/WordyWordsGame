@@ -79,13 +79,15 @@ public class GameManager : MonoBehaviour
     [Header("Settings")]
     [Tooltip("Number of coins required to use a hint")]
     [SerializeField] private int hintCost = 50;
-    [Tooltip("Coins awarded for finding a grid word")]
-    [SerializeField] private int coinsPerWord = 25;
+    [Tooltip("Coins awarded per letter in a grid word (e.g. 5 × 4 letters = 20 coins)")]
+    [SerializeField] private int coinsPerLetter = 5;
     [Tooltip("Coins awarded for finding a bonus word")]
     [SerializeField] private int coinsPerExtraWord = 10;
 
     private int currentLevelIndex;
     private int coins;
+    private int displayedCoins;
+    private Coroutine coinClimbCoroutine;
     private int extraWordsFound;
     private RuntimeLevelGenerator runtimeGenerator;
     private List<string> foundExtraWords = new List<string>();
@@ -93,6 +95,7 @@ public class GameManager : MonoBehaviour
     private void Start()
     {
         coins = 100;
+        displayedCoins = 100;
         currentLevelIndex = startLevelIndex;
 
         if (useRandomLevels)
@@ -223,7 +226,9 @@ public class GameManager : MonoBehaviour
     private void HandleGridWordFound(string word)
     {
         crosswordGrid.RevealWord(word);
-        AddCoins(coinsPerWord);
+
+        int wordCoins = coinsPerLetter * word.Length;
+        AddCoins(wordCoins);
 
         var cellTransforms = crosswordGrid.GetWordCellTransforms(word);
 
@@ -235,8 +240,20 @@ public class GameManager : MonoBehaviour
                 correctWordParticles.Play();
         }
 
-        if (coinStreakManager != null && cellTransforms.Count > 0)
-            coinStreakManager.PlayStreaks(cellTransforms, coinText.transform);
+        if (coinStreakManager != null && cellTransforms.Count > 0 && coinText != null)
+        {
+            Vector3 textCenter = coinText.transform.TransformPoint(coinText.textBounds.center);
+            coinStreakManager.PlayStreaks(cellTransforms, textCenter);
+
+            // Machine gun: each trail triggers a particle burst on arrival
+            float travelTime = coinStreakManager.TravelDuration;
+            float stagger = coinStreakManager.StaggerDelay;
+            for (int i = 0; i < cellTransforms.Count; i++)
+            {
+                float arrivalTime = travelTime + i * stagger;
+                StartCoroutine(CoinArrivalBurst(arrivalTime, i == 0));
+            }
+        }
 
         // Check level complete
         if (crosswordGrid.IsComplete())
@@ -317,7 +334,7 @@ public class GameManager : MonoBehaviour
             foreach (string word in completedWords)
             {
                 swipeController.MarkWordAsFound(word);
-                AddCoins(coinsPerWord);
+                AddCoins(coinsPerLetter * word.Length);
 
                 if (correctWordParticles != null)
                 {
@@ -456,8 +473,60 @@ public class GameManager : MonoBehaviour
 
     private void UpdateCoinDisplay()
     {
-        if (coinText != null)
-            coinText.text = coins.ToString();
+        if (coinText == null) return;
+
+        if (coinClimbCoroutine != null)
+        {
+            StopCoroutine(coinClimbCoroutine);
+            // Snapshot what's currently displayed so next animation starts from there
+            if (int.TryParse(coinText.text, out int current))
+                displayedCoins = current;
+        }
+        coinClimbCoroutine = StartCoroutine(AnimateCoinDisplay());
+    }
+
+    private IEnumerator AnimateCoinDisplay()
+    {
+        int from = displayedCoins;
+        int to = coins;
+        if (from == to)
+        {
+            coinText.text = to.ToString();
+            yield break;
+        }
+
+        float duration = 0.5f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            // Ease out — fast start, slow finish (jackpot feel)
+            t = 1f - (1f - t) * (1f - t);
+            int current = Mathf.RoundToInt(Mathf.Lerp(from, to, t));
+            coinText.text = current.ToString();
+            yield return null;
+        }
+
+        coinText.text = to.ToString();
+        displayedCoins = to;
+        coinClimbCoroutine = null;
+    }
+
+    private IEnumerator CoinArrivalBurst(float delay, bool punchScale)
+    {
+        yield return new WaitForSeconds(delay);
+
+        if (correctWordParticles != null && coinText != null)
+            correctWordParticles.PlayAt(coinText.rectTransform);
+
+        // Only punch on first arrival to avoid compounding scale
+        if (punchScale && coinText != null)
+        {
+            coinText.transform.localScale = Vector3.one;
+            StartCoroutine(TweenHelper.PunchScale(coinText.transform, Vector3.one * 0.25f, 0.3f));
+        }
     }
 
 }

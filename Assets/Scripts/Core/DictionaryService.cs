@@ -13,6 +13,7 @@ public class DictionaryService : MonoBehaviour
         = new Dictionary<string, DictionaryResult>(StringComparer.OrdinalIgnoreCase);
 
     private const string API_URL = "https://api.dictionaryapi.dev/api/v2/entries/en/";
+    private const string WIKTIONARY_URL = "https://en.wiktionary.org/api/rest_v1/page/definition/";
 
     private void Awake()
     {
@@ -67,9 +68,47 @@ public class DictionaryService : MonoBehaviour
 
     private IEnumerator FetchCoroutine(string word, Action<DictionaryResult> onComplete)
     {
+        // Try Free Dictionary API first
         string url = API_URL + UnityWebRequest.EscapeURL(word);
         using (var request = UnityWebRequest.Get(url))
         {
+            request.timeout = 10;
+            yield return request.SendWebRequest();
+
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                string json = request.downloadHandler.text;
+                DictionaryResult result = ParseResponse(word, json);
+                cache[word] = result;
+                onComplete?.Invoke(result);
+                yield break;
+            }
+
+            // If not a 404, it's a network error — don't try fallback
+            if (request.responseCode != 404)
+            {
+                var errorResult = new DictionaryResult
+                {
+                    word = word,
+                    isError = true,
+                    errorMessage = "Could not connect. Check your internet connection."
+                };
+                cache[word] = errorResult;
+                onComplete?.Invoke(errorResult);
+                yield break;
+            }
+        }
+
+        // Fallback: try Wiktionary API
+        yield return FetchWiktionaryCoroutine(word, onComplete);
+    }
+
+    private IEnumerator FetchWiktionaryCoroutine(string word, Action<DictionaryResult> onComplete)
+    {
+        string url = WIKTIONARY_URL + UnityWebRequest.EscapeURL(word);
+        using (var request = UnityWebRequest.Get(url))
+        {
+            request.SetRequestHeader("User-Agent", "WordyWordsGame/1.0");
             request.timeout = 10;
             yield return request.SendWebRequest();
 
@@ -79,9 +118,7 @@ public class DictionaryService : MonoBehaviour
                 {
                     word = word,
                     isError = true,
-                    errorMessage = request.responseCode == 404
-                        ? "This is a valid word, but no dictionary definition is available."
-                        : "Could not connect. Check your internet connection."
+                    errorMessage = "This is a valid word, but no dictionary definition is available."
                 };
                 cache[word] = errorResult;
                 onComplete?.Invoke(errorResult);
@@ -89,7 +126,7 @@ public class DictionaryService : MonoBehaviour
             }
 
             string json = request.downloadHandler.text;
-            DictionaryResult result = ParseResponse(word, json);
+            DictionaryResult result = ParseWiktionaryResponse(word, json);
             cache[word] = result;
             onComplete?.Invoke(result);
         }
@@ -253,5 +290,140 @@ public class DictionaryService : MonoBehaviour
             }
         }
         return -1;
+    }
+
+    // ─── Wiktionary Parsing ───
+
+    private DictionaryResult ParseWiktionaryResponse(string word, string json)
+    {
+        try
+        {
+            var result = new DictionaryResult { word = word };
+
+            // Wiktionary returns: {"en": [{"partOfSpeech": "Noun", "definitions": [{"definition": "<html>..."}]}]}
+            // Find the "en" array
+            int enIdx = json.IndexOf("\"en\"");
+            if (enIdx < 0)
+                return new DictionaryResult { word = word, isError = true, errorMessage = "No English definition found." };
+
+            int arrStart = json.IndexOf('[', enIdx);
+            if (arrStart < 0) return result;
+
+            int arrEnd = FindMatchingBracket(json, arrStart, '[', ']');
+            if (arrEnd < 0) return result;
+
+            string enJson = json.Substring(arrStart + 1, arrEnd - arrStart - 1);
+
+            // Parse each part-of-speech object
+            int searchFrom = 0;
+            while (searchFrom < enJson.Length)
+            {
+                int objStart = enJson.IndexOf('{', searchFrom);
+                if (objStart < 0) break;
+
+                int objEnd = FindMatchingBracket(enJson, objStart, '{', '}');
+                if (objEnd < 0) break;
+
+                string posObj = enJson.Substring(objStart, objEnd - objStart + 1);
+                var meaning = ParseWiktionaryMeaning(posObj);
+                if (meaning != null && meaning.definitions.Count > 0)
+                    result.meanings.Add(meaning);
+
+                searchFrom = objEnd + 1;
+            }
+
+            if (result.meanings.Count == 0)
+            {
+                result.isError = true;
+                result.errorMessage = "This is a valid word, but no dictionary definition is available.";
+            }
+
+            return result;
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning($"[DictionaryService] Wiktionary parse error: {e.Message}");
+            return new DictionaryResult
+            {
+                word = word,
+                isError = true,
+                errorMessage = "Failed to parse definition."
+            };
+        }
+    }
+
+    private Meaning ParseWiktionaryMeaning(string json)
+    {
+        var meaning = new Meaning();
+
+        int posIdx = json.IndexOf("\"partOfSpeech\"");
+        if (posIdx >= 0)
+            meaning.partOfSpeech = ExtractStringValue(json, posIdx);
+
+        int defsIdx = json.IndexOf("\"definitions\"");
+        if (defsIdx < 0) return meaning;
+
+        int arrStart = json.IndexOf('[', defsIdx);
+        if (arrStart < 0) return meaning;
+
+        int arrEnd = FindMatchingBracket(json, arrStart, '[', ']');
+        if (arrEnd < 0) return meaning;
+
+        string defsJson = json.Substring(arrStart + 1, arrEnd - arrStart - 1);
+
+        int searchFrom = 0;
+        while (searchFrom < defsJson.Length)
+        {
+            int objStart = defsJson.IndexOf('{', searchFrom);
+            if (objStart < 0) break;
+
+            int objEnd = FindMatchingBracket(defsJson, objStart, '{', '}');
+            if (objEnd < 0) break;
+
+            string defObj = defsJson.Substring(objStart, objEnd - objStart + 1);
+            var entry = new DefinitionEntry();
+
+            int defIdx = defObj.IndexOf("\"definition\"");
+            if (defIdx >= 0)
+            {
+                string raw = ExtractStringValue(defObj, defIdx);
+                if (raw != null)
+                    entry.definition = StripHtml(raw);
+            }
+
+            if (!string.IsNullOrEmpty(entry.definition))
+                meaning.definitions.Add(entry);
+
+            searchFrom = objEnd + 1;
+        }
+
+        return meaning;
+    }
+
+    private static string StripHtml(string html)
+    {
+        if (string.IsNullOrEmpty(html)) return html;
+
+        // Remove HTML tags
+        var sb = new System.Text.StringBuilder(html.Length);
+        bool inTag = false;
+        for (int i = 0; i < html.Length; i++)
+        {
+            char c = html[i];
+            if (c == '<') { inTag = true; continue; }
+            if (c == '>') { inTag = false; continue; }
+            if (!inTag) sb.Append(c);
+        }
+
+        // Decode common HTML entities
+        string text = sb.ToString();
+        text = text.Replace("&amp;", "&");
+        text = text.Replace("&lt;", "<");
+        text = text.Replace("&gt;", ">");
+        text = text.Replace("&quot;", "\"");
+        text = text.Replace("&#39;", "'");
+        text = text.Replace("&nbsp;", " ");
+
+        return text.Trim();
     }
 }

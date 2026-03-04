@@ -1,26 +1,36 @@
 using UnityEngine;
 using UnityEngine.UI;
 
-public class CoinStreakTrail : MonoBehaviour
+/// <summary>
+/// Procedural ribbon trail that follows a cubic Bezier curve.
+/// Extends MaskableGraphic to generate a single connected quad strip mesh —
+/// the UI equivalent of TrailRenderer for Canvas/2D.
+/// </summary>
+public class CoinStreakTrail : MaskableGraphic
 {
-    private RectTransform rt;
-    private Image image;
     private Vector2 p0, p1, p2, p3;
     private float startDelay;
     private float travelDuration;
     private float elapsed;
     private bool moving;
+    private float headT;
+    private float tailT;
+    private float trailSpan;
+    private float streakWidth;
+    private int sampleCount;
     private Color baseColor;
-    private Vector2 prevPos;
-    private float streakLength;
-    private bool visible;
+    private bool draining;
+    private float drainElapsed;
+    private float drainDuration;
+    private float tailTAtDrainStart;
 
-    public void Setup(RectTransform rectTransform, Image img, Color color, float length)
+    public void Setup(Color color, float width, int samples, float span)
     {
-        rt = rectTransform;
-        image = img;
         baseColor = color;
-        streakLength = length;
+        streakWidth = width;
+        sampleCount = Mathf.Max(2, samples);
+        trailSpan = span;
+        raycastTarget = false;
     }
 
     public void Initialize(Vector2 start, Vector2 end, float delay, float duration, float arcHeight)
@@ -39,13 +49,12 @@ public class CoinStreakTrail : MonoBehaviour
         travelDuration = duration;
         elapsed = 0f;
         moving = false;
-        visible = false;
-        prevPos = start;
+        headT = 0f;
+        tailT = 0f;
+        draining = false;
+        drainElapsed = 0f;
 
-        rt.anchoredPosition = start;
-        rt.localRotation = Quaternion.identity;
-        rt.localScale = Vector3.one;
-        image.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0f);
+        SetVerticesDirty();
     }
 
     public bool Tick(float dt)
@@ -59,41 +68,88 @@ public class CoinStreakTrail : MonoBehaviour
         }
 
         elapsed += dt;
-        float rawT = Mathf.Clamp01(elapsed / travelDuration);
-        float t = EaseInOutCubic(rawT);
 
-        Vector2 newPos = EvaluateBezier(t);
-        rt.anchoredPosition = newPos;
-
-        // Rotate to face movement direction
-        Vector2 dir = newPos - prevPos;
-        if (dir.sqrMagnitude > 0.001f)
+        if (!draining)
         {
-            float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-            rt.localRotation = Quaternion.Euler(0, 0, angle);
-            // Only become visible once we have a valid direction
-            if (!visible)
+            float rawT = Mathf.Clamp01(elapsed / travelDuration);
+            headT = EaseInOutCubic(rawT);
+            tailT = Mathf.Max(0f, headT - trailSpan);
+
+            if (rawT >= 1f)
             {
-                visible = true;
-                image.color = baseColor;
+                headT = 1f;
+                draining = true;
+                tailTAtDrainStart = tailT;
+                drainElapsed = 0f;
+                drainDuration = travelDuration * 0.3f;
             }
         }
-        prevPos = newPos;
-
-        // Shrink length as it approaches target
-        float scale = Mathf.Lerp(1f, 0.4f, rawT);
-        rt.localScale = new Vector3(scale, scale, 1f);
-
-        // Fade out in last 30%
-        if (rawT > 0.7f)
+        else
         {
-            float fadeT = (rawT - 0.7f) / 0.3f;
-            var c = baseColor;
-            c.a = 1f - fadeT;
-            image.color = c;
+            drainElapsed += dt;
+            float drainT = Mathf.Clamp01(drainElapsed / drainDuration);
+            tailT = Mathf.Lerp(tailTAtDrainStart, 1f, drainT);
+
+            if (drainT >= 1f)
+            {
+                SetVerticesDirty();
+                return true;
+            }
         }
 
-        return rawT >= 1f;
+        SetVerticesDirty();
+        return false;
+    }
+
+    protected override void OnPopulateMesh(VertexHelper vh)
+    {
+        vh.Clear();
+
+        float span = headT - tailT;
+        if (span <= 0.001f) return;
+
+        int samples = sampleCount;
+        float halfWidth = streakWidth * 0.5f;
+
+        for (int i = 0; i <= samples; i++)
+        {
+            float frac = (float)i / samples; // 0 at tail, 1 at head
+            float t = Mathf.Lerp(tailT, headT, frac);
+
+            Vector2 pos = EvaluateBezier(t);
+            Vector2 tangent = EvaluateTangent(t);
+
+            // Perpendicular: rotate tangent 90° CCW
+            Vector2 perp = new Vector2(-tangent.y, tangent.x);
+            if (perp.sqrMagnitude > 0.0001f)
+                perp.Normalize();
+            else
+                perp = Vector2.up;
+
+            // Width taper: eye/football shape — 0 at both ends, widest in middle
+            float taper = Mathf.Sin(frac * Mathf.PI);
+            float w = halfWidth * taper;
+
+            // Solid alpha — shape is defined by width taper, not transparency
+            Color vc = baseColor;
+
+            Vector2 left = pos + perp * w;
+            Vector2 right = pos - perp * w;
+
+            vh.AddVert(new Vector3(left.x, left.y, 0f), vc, new Vector2(0f, frac));
+            vh.AddVert(new Vector3(right.x, right.y, 0f), vc, new Vector2(1f, frac));
+        }
+
+        for (int i = 0; i < samples; i++)
+        {
+            int bl = i * 2;
+            int br = i * 2 + 1;
+            int tl = (i + 1) * 2;
+            int tr = (i + 1) * 2 + 1;
+
+            vh.AddTriangle(bl, tl, tr);
+            vh.AddTriangle(bl, tr, br);
+        }
     }
 
     private Vector2 EvaluateBezier(float t)
@@ -108,6 +164,17 @@ public class CoinStreakTrail : MonoBehaviour
              + 3f * uu * t * p1
              + 3f * u * tt * p2
              + ttt * p3;
+    }
+
+    /// <summary>
+    /// First derivative of cubic Bezier — tangent direction at parameter t.
+    /// </summary>
+    private Vector2 EvaluateTangent(float t)
+    {
+        float u = 1f - t;
+        return 3f * u * u * (p1 - p0)
+             + 6f * u * t * (p2 - p1)
+             + 3f * t * t * (p3 - p2);
     }
 
     private static float EaseInOutCubic(float t)
