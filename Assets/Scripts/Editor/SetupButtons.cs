@@ -68,7 +68,7 @@ public static class SetupButtons
         so.FindProperty("shadowBlur").floatValue = 5f;
         so.FindProperty("shadowExpand").floatValue = expand;
         so.FindProperty("bevelSize").floatValue = 14f;
-        so.FindProperty("bevelStrength").floatValue = 0.25f;
+        so.FindProperty("bevelStrength").floatValue = 0.5f;
         so.ApplyModifiedProperties();
 
         EditorUtility.SetDirty(btnGO);

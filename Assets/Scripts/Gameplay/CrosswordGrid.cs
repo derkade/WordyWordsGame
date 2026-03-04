@@ -44,12 +44,19 @@ public class CrosswordGrid : MonoBehaviour
     [Tooltip("Extra padding around shape for shadow rendering")]
     [SerializeField] private float shadowExpand = 6f;
 
-    [Header("Inner Bevel")]
-    [Tooltip("How deep the bevel extends from the edge in pixels")]
-    [SerializeField] private float bevelSize = 14f;
-    [Tooltip("Intensity of the highlight (top) and shadow (bottom)")]
-    [Range(0f, 0.5f)]
-    [SerializeField] private float bevelStrength = 0.25f;
+    [Header("Inner Bevel (Unrevealed)")]
+    [Tooltip("How deep the bevel extends from the edge in pixels for unrevealed cells")]
+    [SerializeField] private float bevelSize = 24f;
+    [Tooltip("Intensity of the bevel effect for unrevealed cells")]
+    [Range(0f, 1f)]
+    [SerializeField] private float bevelStrength = 0.5f;
+
+    [Header("Inner Bevel (Revealed)")]
+    [Tooltip("How deep the bevel extends from the edge in pixels for revealed cells")]
+    [SerializeField] private float revealedBevelSize = 14f;
+    [Tooltip("Intensity of the bevel effect for revealed cells")]
+    [Range(0f, 1f)]
+    [SerializeField] private float revealedBevelStrength = 0.25f;
 
     [Header("Debug")]
     [Tooltip("Show all letters on the grid (cheat mode)")]
@@ -75,12 +82,25 @@ public class CrosswordGrid : MonoBehaviour
     private Camera canvasCamera;
     private Material roundedRectMaterial;
     private Material cellMaterial;
+    private Material revealedCellMaterial;
 
     private void Awake()
     {
         var canvas = GetComponentInParent<Canvas>();
         if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
             canvasCamera = canvas.worldCamera;
+    }
+
+    private void SetSharedMaterialProps(Material mat, float expandedSize, float shadowExp)
+    {
+        mat.SetVector("_RectSize", new Vector4(expandedSize, expandedSize, 0, 0));
+        mat.SetFloat("_Radius", cellCornerRadius);
+        mat.SetFloat("_BorderWidth", cellBorderWidth);
+        mat.SetColor("_BorderColor", cellBorderColor);
+        mat.SetColor("_ShadowColor", shadowColor);
+        mat.SetVector("_ShadowOffset", new Vector4(shadowOffset.x, shadowOffset.y, 0, 0));
+        mat.SetFloat("_ShadowBlur", shadowBlur);
+        mat.SetFloat("_ShadowExpand", shadowExp);
     }
 
     private float ComputeCellSize(int gridWidth, int gridHeight)
@@ -115,17 +135,17 @@ public class CrosswordGrid : MonoBehaviour
 
         if (roundedRectMaterial != null)
         {
+            // Unrevealed cell material (stronger bevel for white tiles)
             cellMaterial = new Material(roundedRectMaterial);
-            cellMaterial.SetVector("_RectSize", new Vector4(expandedSize, expandedSize, 0, 0));
-            cellMaterial.SetFloat("_Radius", cellCornerRadius);
-            cellMaterial.SetFloat("_BorderWidth", cellBorderWidth);
-            cellMaterial.SetColor("_BorderColor", cellBorderColor);
-            cellMaterial.SetColor("_ShadowColor", shadowColor);
-            cellMaterial.SetVector("_ShadowOffset", new Vector4(shadowOffset.x, shadowOffset.y, 0, 0));
-            cellMaterial.SetFloat("_ShadowBlur", shadowBlur);
-            cellMaterial.SetFloat("_ShadowExpand", shadowExp);
+            SetSharedMaterialProps(cellMaterial, expandedSize, shadowExp);
             cellMaterial.SetFloat("_BevelSize", bevelSize);
             cellMaterial.SetFloat("_BevelStrength", bevelStrength);
+
+            // Revealed cell material (subtler bevel for dark tiles)
+            revealedCellMaterial = new Material(roundedRectMaterial);
+            SetSharedMaterialProps(revealedCellMaterial, expandedSize, shadowExp);
+            revealedCellMaterial.SetFloat("_BevelSize", revealedBevelSize);
+            revealedCellMaterial.SetFloat("_BevelStrength", revealedBevelStrength);
         }
 
         // Center the grid in the container
@@ -199,7 +219,7 @@ public class CrosswordGrid : MonoBehaviour
             {
                 var cell = kvp.Value;
                 cell.letterText.text = cell.letter.ToString();
-                cell.letterText.color = cell.isRevealed ? letterColor : new Color(letterColor.r, letterColor.g, letterColor.b, 0.35f);
+                cell.letterText.color = cell.isRevealed ? letterColor : new Color(0f, 0f, 0f, 0.7f);
             }
         }
     }
@@ -234,6 +254,8 @@ public class CrosswordGrid : MonoBehaviour
                 cell.isRevealed = true;
                 cell.letterText.text = cell.letter.ToString();
                 cell.background.color = cellRevealedColor;
+                if (revealedCellMaterial != null)
+                    cell.background.material = revealedCellMaterial;
 
                 // Staggered punch animation
                 float delay = i * 0.08f;
@@ -269,6 +291,8 @@ public class CrosswordGrid : MonoBehaviour
         cell.isRevealed = true;
         cell.letterText.text = cell.letter.ToString();
         cell.background.color = cellRevealedColor;
+        if (revealedCellMaterial != null)
+            cell.background.material = revealedCellMaterial;
         StartCoroutine(TweenHelper.PunchScale(cell.rectTransform, Vector3.one * 0.3f, 0.4f));
 
         // Check if any word is now fully revealed

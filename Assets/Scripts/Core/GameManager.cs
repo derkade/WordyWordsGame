@@ -73,6 +73,8 @@ public class GameManager : MonoBehaviour
     [SerializeField] private UIParticleEffect bonusWordParticles;
     [Tooltip("Fireworks particle effect for level completion")]
     [SerializeField] private UIParticleEffect levelCompleteParticles;
+    [Tooltip("Coin streak trails that fly from revealed cells to the score")]
+    [SerializeField] private CoinStreakManager coinStreakManager;
 
     [Header("Settings")]
     [Tooltip("Number of coins required to use a hint")]
@@ -223,14 +225,18 @@ public class GameManager : MonoBehaviour
         crosswordGrid.RevealWord(word);
         AddCoins(coinsPerWord);
 
+        var cellTransforms = crosswordGrid.GetWordCellTransforms(word);
+
         if (correctWordParticles != null)
         {
-            var cellTransforms = crosswordGrid.GetWordCellTransforms(word);
             if (cellTransforms.Count > 0)
                 correctWordParticles.PlaySequence(cellTransforms, 0.1f);
             else
                 correctWordParticles.Play();
         }
+
+        if (coinStreakManager != null && cellTransforms.Count > 0)
+            coinStreakManager.PlayStreaks(cellTransforms, coinText.transform);
 
         // Check level complete
         if (crosswordGrid.IsComplete())

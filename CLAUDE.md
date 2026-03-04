@@ -133,21 +133,21 @@ mv Assets/Resources/wordlist_filtered.txt Assets/Resources/wordlist.txt
 
 ## Workflow Rules
 
-### Commit Early, Commit Often
-When context usage is getting high, or before a natural stopping point, **always stage and commit all changes with a detailed commit message** and push to GitHub. Commit messages should describe:
+### Commits
+Do NOT commit or push unless the user explicitly asks. Wait for the user to say "commit", "push", etc. before staging, committing, or pushing.
+
+When the user does ask to commit, commit messages should describe:
 - What was built, changed, or fixed
 - Key design decisions and why they were made
 - Any known issues, TODOs, or next steps
 
 Do NOT add co-author tags or AI attribution to commits. All commits should be authored solely by derkade.
 
-This is critical because conversation context compacts over long sessions and memory is lost. The git log serves as durable memory that survives across sessions and machines. Claude Code can always run `git log --oneline -20` or `git log -1 --format=%B` to recover context from previous work.
-
 ### Debugging Stubborn Problems
 If a problem is continually acting unresolved, decompose the problem into independent logical components. Validate each one individually. Then, synthesize your final answer from the validated pieces.
 
 ### Before Ending a Session
-Always ensure all meaningful work is committed and pushed before wrapping up. An uncommitted change that gets lost to compaction is wasted effort.
+If context is running low, remind the user to commit and push before the session ends.
 
 ## Development Environment
 - **Two development PCs:** PicoWaffen (RTX 4090) and CatDragon (Surface i7)
