@@ -463,6 +463,26 @@ public class CrosswordGrid : MonoBehaviour
         return result;
     }
 
+    /// <summary>
+    /// Returns a bool per letter in the word — true if that cell was already revealed
+    /// before this word was found (i.e. from a crossing word).
+    /// </summary>
+    public List<bool> GetWordCellRevealedStates(string word)
+    {
+        string upper = word.ToUpper();
+        var result = new List<bool>();
+        if (!wordCellPositions.ContainsKey(upper)) return result;
+
+        foreach (var pos in wordCellPositions[upper])
+        {
+            if (cells.ContainsKey(pos))
+                result.Add(cells[pos].isRevealed);
+            else
+                result.Add(false);
+        }
+        return result;
+    }
+
     public void HandleCellClick(Vector2Int pos, Vector2 screenPos)
     {
         if (!cells.ContainsKey(pos)) return;
