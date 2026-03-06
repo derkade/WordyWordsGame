@@ -122,6 +122,23 @@ public class CrosswordGrid : MonoBehaviour
         ClearGrid();
         currentLevel = levelData;
 
+        // Auto-transpose if rotating 90° gives larger cells (better space usage)
+        float normalSize = ComputeCellSize(levelData.gridWidth, levelData.gridHeight);
+        float transposedSize = ComputeCellSize(levelData.gridHeight, levelData.gridWidth);
+        if (transposedSize > normalSize * 1.05f)
+        {
+            int tmp = levelData.gridWidth;
+            levelData.gridWidth = levelData.gridHeight;
+            levelData.gridHeight = tmp;
+            foreach (var wp in levelData.wordPlacements)
+            {
+                int oldRow = wp.row;
+                wp.row = wp.startCol;
+                wp.startCol = oldRow;
+                wp.isHorizontal = !wp.isHorizontal;
+            }
+        }
+
         float cellSize = ComputeCellSize(levelData.gridWidth, levelData.gridHeight);
         currentCellSize = cellSize;
 
@@ -237,6 +254,7 @@ public class CrosswordGrid : MonoBehaviour
         wordCellPositions.Clear();
         wordDirections.Clear();
         revealedWords.Clear();
+        pendingHintCells.Clear();
     }
 
     public bool RevealWord(string word)
@@ -357,7 +375,7 @@ public class CrosswordGrid : MonoBehaviour
         var cell = cells[pos];
         cell.isRevealed = true;
         revealedCellRT = cell.rectTransform;
-        pendingHintCell = cell;
+        pendingHintCells.Enqueue(cell);
 
         // Check if any word is now fully revealed
         var completedWords = new List<string>();
@@ -385,7 +403,7 @@ public class CrosswordGrid : MonoBehaviour
         return completedWords;
     }
 
-    private GridCell pendingHintCell;
+    private Queue<GridCell> pendingHintCells = new Queue<GridCell>();
 
     /// <summary>
     /// Shows the letter and plays the reveal animation for the pending hint cell.
@@ -393,9 +411,9 @@ public class CrosswordGrid : MonoBehaviour
     /// </summary>
     public void RevealHintCell()
     {
-        if (pendingHintCell == null) return;
+        if (pendingHintCells.Count == 0) return;
 
-        var cell = pendingHintCell;
+        var cell = pendingHintCells.Dequeue();
         cell.letterText.text = cell.letter.ToString();
         cell.background.color = cellRevealedColor;
         if (revealedCellMaterial != null)
@@ -403,7 +421,6 @@ public class CrosswordGrid : MonoBehaviour
         StartCoroutine(TweenHelper.PunchScale(cell.rectTransform, Vector3.one * 0.3f, 0.4f));
 
         lastRevealedHintRT = cell.rectTransform;
-        pendingHintCell = null;
     }
 
     private RectTransform lastRevealedHintRT;
@@ -431,6 +448,21 @@ public class CrosswordGrid : MonoBehaviour
     public List<string> GetRevealedWords()
     {
         return new List<string>(revealedWords);
+    }
+
+    public void PunchWordCells(string word, float staggerDelay, List<bool> onlyThese = null)
+    {
+        string upper = word.ToUpper();
+        if (!wordCellPositions.ContainsKey(upper)) return;
+        var positions = wordCellPositions[upper];
+        int punchIndex = 0;
+        for (int i = 0; i < positions.Count; i++)
+        {
+            if (onlyThese != null && (i >= onlyThese.Count || !onlyThese[i]))
+                continue;
+            if (cells.ContainsKey(positions[i]))
+                StartCoroutine(DelayedPunch(cells[positions[i]].rectTransform, punchIndex++ * staggerDelay));
+        }
     }
 
     public int TotalCells => cells.Count;

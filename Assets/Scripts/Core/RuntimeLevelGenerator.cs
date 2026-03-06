@@ -115,7 +115,7 @@ public class RuntimeLevelGenerator
             int w = maxX - minX + 1;
             int h = maxY - minY + 1;
             float aspect = (float)Mathf.Max(w, h) / Mathf.Max(1, Mathf.Min(w, h));
-            if (aspect > 2.5f) continue;
+            if (aspect > 2.0f) continue;
 
             // Normalize to (0,0)
             if (minX != 0 || minY != 0)
@@ -307,6 +307,12 @@ public class RuntimeLevelGenerator
                     int expansion = (newMaxX - newMinX + 1) * (newMaxY - newMinY + 1)
                                   - (curMaxX - curMinX + 1) * (curMaxY - curMinY + 1);
                     score -= expansion;
+
+                    // Penalize high aspect ratios to favor squarish grids
+                    int newW = newMaxX - newMinX + 1;
+                    int newH = newMaxY - newMinY + 1;
+                    float newAspect = (float)Mathf.Max(newW, newH) / Mathf.Max(1, Mathf.Min(newW, newH));
+                    score -= Mathf.RoundToInt((newAspect - 1f) * 6f);
 
                     if (score > bestScore)
                     {

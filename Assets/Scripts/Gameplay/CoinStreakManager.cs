@@ -163,9 +163,9 @@ public class CoinStreakManager : MonoBehaviour
             poolGlowObjects[idx].SetActive(true);
             poolGlowTrails[idx].CopyPathFrom(poolCoreTrails[idx]);
 
-            // Render order: glow behind, core on top
-            poolGlowObjects[idx].transform.SetAsLastSibling();
+            // Render order: core behind, glow on top
             poolCoreObjects[idx].transform.SetAsLastSibling();
+            poolGlowObjects[idx].transform.SetAsLastSibling();
         }
     }
 
@@ -204,8 +204,8 @@ public class CoinStreakManager : MonoBehaviour
         poolGlowObjects[idx].SetActive(true);
         poolGlowTrails[idx].CopyPathFrom(poolCoreTrails[idx]);
 
-        poolGlowObjects[idx].transform.SetAsLastSibling();
         poolCoreObjects[idx].transform.SetAsLastSibling();
+        poolGlowObjects[idx].transform.SetAsLastSibling();
     }
 
     private void ReturnToPool(int idx)

@@ -274,13 +274,16 @@ public class GameManager : MonoBehaviour
         for (int i = 0; i < cellTransforms.Count; i++)
         {
             int idx = i;
-
-            // Skip cells already revealed by crossing words
-            if (idx < alreadyRevealed.Count && alreadyRevealed[idx])
-                continue;
-
             float delay = launchIndex * tileLaunchStagger;
             launchIndex++;
+
+            // Already-revealed cells just bounce in sequence (no flying tile)
+            if (idx < alreadyRevealed.Count && alreadyRevealed[idx])
+            {
+                StartCoroutine(DelayedCellPunch(cellTransforms[idx], delay + tileFlightDuration));
+                continue;
+            }
+
             tilesLaunched++;
 
             var tile = CreateFlyingTile(canvasTransform, cellSize);
@@ -315,6 +318,8 @@ public class GameManager : MonoBehaviour
         // If all cells were already revealed, fire streaks immediately
         if (tilesLaunched == 0)
         {
+            crosswordGrid.PunchWordCells(word, 0.05f);
+
             if (correctWordParticles != null)
                 correctWordParticles.PlaySequence(cellTransforms, 0.05f);
 
@@ -334,7 +339,7 @@ public class GameManager : MonoBehaviour
 
         // Wait for everything to finish before checking level complete
         float totalTime = (tilesLaunched > 0)
-            ? (tilesLaunched - 1) * tileLaunchStagger + tileFlightDuration
+            ? (launchIndex - 1) * tileLaunchStagger + tileFlightDuration
             : 0f;
         if (coinStreakManager != null)
             totalTime += coinStreakManager.TravelDuration + (cellTransforms.Count - 1) * coinStreakManager.StaggerDelay + 0.15f;
@@ -370,6 +375,13 @@ public class GameManager : MonoBehaviour
 
         go.SetActive(false);
         return go;
+    }
+
+    private IEnumerator DelayedCellPunch(Transform target, float delay)
+    {
+        if (delay > 0f)
+            yield return new WaitForSeconds(delay);
+        yield return TweenHelper.PunchScale(target, Vector3.one * 0.2f, 0.3f);
     }
 
     private IEnumerator FlyTile(GameObject tile, Vector3 fromWorld, Vector3 toWorld, float delay, float duration, System.Action onLand = null)
