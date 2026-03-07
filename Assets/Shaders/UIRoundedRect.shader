@@ -182,11 +182,13 @@ Shader "UI/RoundedRect"
                 float glossFade = smoothstep(0.0, _GlossSize, glossCutoff);
                 // Soften near shape edges using SDF distance
                 float glossEdge = saturate(-dist / max(edgeSoftness * 3.0, 1.0));
-                float gloss = glossFade * glossEdge * _GlossStrength;
+                float glossHighlight = glossFade * glossEdge * _GlossStrength;
+                // Darken bottom half for contrast (inverted, scaled down)
+                float glossShadow = (1.0 - glossFade) * glossEdge * _GlossStrength * 0.4;
 
                 // Composite fill over border
                 fixed4 fillCol = color;
-                fillCol.rgb = saturate(fillCol.rgb + bevel + gloss);
+                fillCol.rgb = saturate(fillCol.rgb + bevel + glossHighlight - glossShadow);
                 fillCol.a *= innerAlpha;
 
                 fixed4 borderCol = _BorderColor;
