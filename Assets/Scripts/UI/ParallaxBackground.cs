@@ -4,6 +4,7 @@ using UnityEngine.UI;
 public class ParallaxBackground : MonoBehaviour
 {
     public enum VerticalAnchor { Stretch, Bottom, Top, FillHeight }
+    public enum ScrollMode { Linear, OvalDrift }
 
     [System.Serializable]
     public class ParallaxLayer
@@ -12,13 +13,21 @@ public class ParallaxBackground : MonoBehaviour
         public Sprite sprite;
         [Tooltip("Alternate sprite for the B copy (tiles A,B,A,B instead of A,A,A,A). Leave empty for normal tiling.")]
         public Sprite alternateSprite;
-        [Tooltip("Scroll speed in screen-widths per second (0.005 ≈ 3.3 min per full scroll)")]
+        [Tooltip("Scroll speed in screen-widths per second (Linear) or orbit speed in revolutions per second (OvalDrift)")]
         public float scrollSpeed;
         [Tooltip("Alpha transparency (1 = opaque, lower values dim the layer)")]
         [Range(0f, 1f)]
         public float alpha = 1f;
         [Tooltip("Stretch fills screen (may distort). Bottom/Top preserves height ratio. FillHeight scales uniformly to fill height (pixel-perfect).")]
         public VerticalAnchor verticalAnchor = VerticalAnchor.Stretch;
+        [Tooltip("Linear scrolls left. OvalDrift follows an elliptical path.")]
+        public ScrollMode scrollMode = ScrollMode.Linear;
+        [Tooltip("Horizontal radius of oval drift (pixels)")]
+        public float ovalRadiusX = 50f;
+        [Tooltip("Vertical radius of oval drift (pixels)")]
+        public float ovalRadiusY = 30f;
+        [Tooltip("OvalDrift: tile in a grid (small repeating textures). Uncheck for single large images like frames.")]
+        public bool ovalTileGrid = true;
     }
 
     [System.Serializable]
@@ -51,6 +60,10 @@ public class ParallaxBackground : MonoBehaviour
         public float tileWidth;     // current width of one tile in pixels
         public int tileCount;       // tiles per pattern (1 = no alternate, 2 = A/B)
         public float spriteAspect;  // sprite width/height (0 = standard mode)
+        public float ovalAngle;     // current angle for OvalDrift
+        public float tileHeight;    // for OvalDrift grid tiling
+        public int gridCols;        // columns in OvalDrift grid
+        public int gridRows;        // rows in OvalDrift grid
     }
 
     private LayerInfo[] layerInfo;
@@ -77,7 +90,7 @@ public class ParallaxBackground : MonoBehaviour
             float parentWidth = parentRT.rect.width;
             for (int i = 0; i < layerInfo.Length; i++)
             {
-                if (layerInfo[i].spriteAspect > 0)
+                if (layerInfo[i].spriteAspect > 0 && layers[i].scrollMode != ScrollMode.OvalDrift)
                     RecalcFillHeight(ref layerInfo[i], parentWidth, parentHeight);
             }
         }
@@ -97,20 +110,34 @@ public class ParallaxBackground : MonoBehaviour
             if (Mathf.Approximately(speed, 0f)) continue;
 
             RectTransform crt = layerInfo[i].containerRT;
-            Vector2 pos = crt.anchoredPosition;
-            float parentWidth = ((RectTransform)crt.parent).rect.width;
 
-            pos.x -= speed * parentWidth * Time.deltaTime;
-
-            float wrapDist;
-            if (layerInfo[i].tileWidth > 0)
-                wrapDist = layerInfo[i].tileWidth * layerInfo[i].tileCount;
+            if (layers[i].scrollMode == ScrollMode.OvalDrift)
+            {
+                // Orbit along an ellipse
+                layerInfo[i].ovalAngle += speed * Mathf.PI * 2f * Time.deltaTime;
+                if (layerInfo[i].ovalAngle > Mathf.PI * 2f)
+                    layerInfo[i].ovalAngle -= Mathf.PI * 2f;
+                float x = layers[i].ovalRadiusX * Mathf.Cos(layerInfo[i].ovalAngle);
+                float y = layers[i].ovalRadiusY * Mathf.Sin(layerInfo[i].ovalAngle);
+                crt.anchoredPosition = new Vector2(x, y);
+            }
             else
-                wrapDist = parentWidth;
-            if (pos.x <= -wrapDist)
-                pos.x += wrapDist;
+            {
+                Vector2 pos = crt.anchoredPosition;
+                float parentWidth2 = ((RectTransform)crt.parent).rect.width;
 
-            crt.anchoredPosition = pos;
+                pos.x -= speed * parentWidth2 * Time.deltaTime;
+
+                float wrapDist;
+                if (layerInfo[i].tileWidth > 0)
+                    wrapDist = layerInfo[i].tileWidth * layerInfo[i].tileCount;
+                else
+                    wrapDist = parentWidth2;
+                if (pos.x <= -wrapDist)
+                    pos.x += wrapDist;
+
+                crt.anchoredPosition = pos;
+            }
         }
     }
 
@@ -173,26 +200,112 @@ public class ParallaxBackground : MonoBehaviour
             containerGO.transform.SetParent(parentRT, false);
             RectTransform containerRT = containerGO.AddComponent<RectTransform>();
 
-            switch (layer.verticalAnchor)
+            if (layer.scrollMode == ScrollMode.OvalDrift)
             {
-                case VerticalAnchor.Stretch:
-                case VerticalAnchor.FillHeight:
-                    containerRT.anchorMin = Vector2.zero;
-                    containerRT.anchorMax = Vector2.one;
-                    break;
-                case VerticalAnchor.Bottom:
-                    containerRT.anchorMin = new Vector2(0f, 0f);
-                    containerRT.anchorMax = new Vector2(1f, heightRatio);
-                    break;
-                case VerticalAnchor.Top:
-                    containerRT.anchorMin = new Vector2(0f, 1f - heightRatio);
-                    containerRT.anchorMax = new Vector2(1f, 1f);
-                    break;
+                // OvalDrift sets its own anchors below — skip the standard anchor setup
             }
-            containerRT.offsetMin = Vector2.zero;
-            containerRT.offsetMax = Vector2.zero;
+            else
+            {
+                switch (layer.verticalAnchor)
+                {
+                    case VerticalAnchor.Stretch:
+                    case VerticalAnchor.FillHeight:
+                        containerRT.anchorMin = Vector2.zero;
+                        containerRT.anchorMax = Vector2.one;
+                        break;
+                    case VerticalAnchor.Bottom:
+                        containerRT.anchorMin = new Vector2(0f, 0f);
+                        containerRT.anchorMax = new Vector2(1f, heightRatio);
+                        break;
+                    case VerticalAnchor.Top:
+                        containerRT.anchorMin = new Vector2(0f, 1f - heightRatio);
+                        containerRT.anchorMax = new Vector2(1f, 1f);
+                        break;
+                }
+                containerRT.offsetMin = Vector2.zero;
+                containerRT.offsetMax = Vector2.zero;
+            }
 
-            if (layer.verticalAnchor == VerticalAnchor.FillHeight)
+            if (layer.scrollMode == ScrollMode.OvalDrift)
+            {
+                float spriteAspect = (float)layer.sprite.texture.width / layer.sprite.texture.height;
+                float tileH = parentHeight;
+                float tileW = tileH * spriteAspect;
+
+                // Container: centered, explicit size
+                containerRT.anchorMin = new Vector2(0.5f, 0.5f);
+                containerRT.anchorMax = new Vector2(0.5f, 0.5f);
+                containerRT.anchoredPosition = Vector2.zero;
+
+                if (layer.ovalTileGrid)
+                {
+                    // Grid tiling for small repeating textures
+                    float padX = layer.ovalRadiusX + tileW;
+                    float padY = layer.ovalRadiusY + tileH * 0.5f;
+                    float totalW = parentWidth + padX * 2f;
+                    float totalH = parentHeight + padY * 2f;
+
+                    int cols = Mathf.CeilToInt(totalW / tileW) + 1;
+                    int rows = Mathf.CeilToInt(totalH / tileH) + 1;
+
+                    containerRT.sizeDelta = new Vector2(cols * tileW, rows * tileH);
+
+                    float startX = -(cols * tileW) / 2f;
+                    float startY = -(rows * tileH) / 2f;
+                    int total = cols * rows;
+
+                    var imgs = new Image[total];
+                    var rts = new RectTransform[total];
+                    for (int r = 0; r < rows; r++)
+                    {
+                        for (int c2 = 0; c2 < cols; c2++)
+                        {
+                            int idx = r * cols + c2;
+                            CreateGridTile($"Layer_{i}_{r}_{c2}", containerRT, layer, layer.sprite,
+                                startX + c2 * tileW, startY + r * tileH, tileW, tileH,
+                                out rts[idx], out imgs[idx]);
+                        }
+                    }
+
+                    layerInfo[i] = new LayerInfo
+                    {
+                        containerRT = containerRT,
+                        imageRTs = rts,
+                        images = imgs,
+                        tileWidth = tileW,
+                        tileHeight = tileH,
+                        tileCount = 1,
+                        spriteAspect = spriteAspect,
+                        gridCols = cols,
+                        gridRows = rows
+                    };
+                }
+                else
+                {
+                    // Single image: stretch to cover screen + drift padding
+                    float imgW = Mathf.Max(tileW, parentWidth) + layer.ovalRadiusX * 2f;
+                    float imgH = parentHeight + layer.ovalRadiusY * 2f;
+                    containerRT.sizeDelta = new Vector2(imgW, imgH);
+
+                    var imgs = new Image[1];
+                    var rts = new RectTransform[1];
+                    CreateGridTile($"Layer_{i}_single", containerRT, layer, layer.sprite,
+                        -imgW / 2f, -imgH / 2f, imgW, imgH,
+                        out rts[0], out imgs[0]);
+
+                    layerInfo[i] = new LayerInfo
+                    {
+                        containerRT = containerRT,
+                        imageRTs = rts,
+                        images = imgs,
+                        tileWidth = imgW,
+                        tileHeight = imgH,
+                        tileCount = 1,
+                        spriteAspect = spriteAspect
+                    };
+                }
+            }
+            else if (layer.verticalAnchor == VerticalAnchor.FillHeight)
             {
                 float spriteAspect = (float)layer.sprite.texture.width / layer.sprite.texture.height;
                 float tileW = parentHeight * spriteAspect;
@@ -260,6 +373,28 @@ public class ParallaxBackground : MonoBehaviour
         rt.pivot = new Vector2(0f, 0f);
         rt.anchoredPosition = new Vector2(xPos, 0f);
         rt.sizeDelta = new Vector2(width, 0f); // height from anchors, explicit width
+
+        img = go.AddComponent<Image>();
+        img.sprite = sprite;
+        img.type = Image.Type.Simple;
+        img.preserveAspect = false;
+        img.color = new Color(1f, 1f, 1f, layer.alpha);
+        img.raycastTarget = false;
+    }
+
+    // OvalDrift grid tile: explicit position and size, no anchoring
+    private void CreateGridTile(string name, RectTransform parent, ParallaxLayer layer, Sprite sprite,
+        float xPos, float yPos, float width, float height, out RectTransform rt, out Image img)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+
+        rt = go.AddComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.5f, 0.5f);
+        rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0f, 0f);
+        rt.anchoredPosition = new Vector2(xPos, yPos);
+        rt.sizeDelta = new Vector2(width, height);
 
         img = go.AddComponent<Image>();
         img.sprite = sprite;
