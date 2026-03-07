@@ -16,7 +16,7 @@ public static class SetupTextOutlines
         };
 
         float outlineWidth = 0.25f;
-        Color32 outlineColor = new Color32(0, 0, 0, 255);
+        Color32 outlineColor = new Color32(38, 38, 38, 180);
 
         foreach (string path in paths)
         {

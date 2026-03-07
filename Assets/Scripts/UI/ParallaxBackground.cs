@@ -3,19 +3,21 @@ using UnityEngine.UI;
 
 public class ParallaxBackground : MonoBehaviour
 {
-    public enum VerticalAnchor { Stretch, Bottom, Top }
+    public enum VerticalAnchor { Stretch, Bottom, Top, FillHeight }
 
     [System.Serializable]
     public class ParallaxLayer
     {
         [Tooltip("Sprite asset for this layer")]
         public Sprite sprite;
+        [Tooltip("Alternate sprite for the B copy (tiles A,B,A,B instead of A,A,A,A). Leave empty for normal tiling.")]
+        public Sprite alternateSprite;
         [Tooltip("Scroll speed in screen-widths per second (0.005 ≈ 3.3 min per full scroll)")]
         public float scrollSpeed;
         [Tooltip("Alpha transparency (1 = opaque, lower values dim the layer)")]
         [Range(0f, 1f)]
         public float alpha = 1f;
-        [Tooltip("Vertical anchor: Stretch fills the screen, Bottom/Top preserves native height ratio")]
+        [Tooltip("Stretch fills screen (may distort). Bottom/Top preserves height ratio. FillHeight scales uniformly to fill height (pixel-perfect).")]
         public VerticalAnchor verticalAnchor = VerticalAnchor.Stretch;
     }
 
@@ -41,15 +43,18 @@ public class ParallaxBackground : MonoBehaviour
 
     private int lastThemeIndex = -1;
 
-    // Each layer has two Image copies (A and B) placed side by side for seamless wrapping
-    private struct LayerPair
+    private struct LayerInfo
     {
         public RectTransform containerRT;
-        public Image imageA;
-        public Image imageB;
+        public RectTransform[] imageRTs;
+        public Image[] images;
+        public float tileWidth;     // current width of one tile in pixels
+        public int tileCount;       // tiles per pattern (1 = no alternate, 2 = A/B)
+        public float spriteAspect;  // sprite width/height (0 = standard mode)
     }
 
-    private LayerPair[] layerPairs;
+    private LayerInfo[] layerInfo;
+    private float lastParentHeight;
 
     private void Awake()
     {
@@ -61,55 +66,101 @@ public class ParallaxBackground : MonoBehaviour
 
     private void Update()
     {
-        if (!scrollEnabled || layerPairs == null) return;
+        if (!scrollEnabled || layerInfo == null) return;
+
+        // Check if parent height changed (aspect ratio switch) — rebuild FillHeight tiles
+        RectTransform parentRT = (RectTransform)transform;
+        float parentHeight = parentRT.rect.height;
+        if (!Mathf.Approximately(parentHeight, lastParentHeight) && parentHeight > 0)
+        {
+            lastParentHeight = parentHeight;
+            float parentWidth = parentRT.rect.width;
+            for (int i = 0; i < layerInfo.Length; i++)
+            {
+                if (layerInfo[i].spriteAspect > 0)
+                    RecalcFillHeight(ref layerInfo[i], parentWidth, parentHeight);
+            }
+        }
 
         for (int i = 0; i < layers.Length; i++)
         {
-            if (layerPairs[i].containerRT == null) continue;
+            if (layerInfo[i].containerRT == null) continue;
 
-            // Live-update alpha so Inspector changes take effect immediately
+            // Live-update alpha
             Color c = new Color(1f, 1f, 1f, layers[i].alpha);
-            if (layerPairs[i].imageA != null) layerPairs[i].imageA.color = c;
-            if (layerPairs[i].imageB != null) layerPairs[i].imageB.color = c;
+            var imgs = layerInfo[i].images;
+            if (imgs != null)
+                for (int j = 0; j < imgs.Length; j++)
+                    if (imgs[j] != null) imgs[j].color = c;
 
             float speed = layers[i].scrollSpeed * globalSpeedMultiplier;
             if (Mathf.Approximately(speed, 0f)) continue;
 
-            RectTransform crt = layerPairs[i].containerRT;
+            RectTransform crt = layerInfo[i].containerRT;
             Vector2 pos = crt.anchoredPosition;
             float parentWidth = ((RectTransform)crt.parent).rect.width;
 
-            // Scroll left
             pos.x -= speed * parentWidth * Time.deltaTime;
 
-            // Wrap: when scrolled one full image width, reset
-            if (pos.x <= -parentWidth)
-                pos.x += parentWidth;
+            float wrapDist;
+            if (layerInfo[i].tileWidth > 0)
+                wrapDist = layerInfo[i].tileWidth * layerInfo[i].tileCount;
+            else
+                wrapDist = parentWidth;
+            if (pos.x <= -wrapDist)
+                pos.x += wrapDist;
 
             crt.anchoredPosition = pos;
         }
     }
 
+    private void RecalcFillHeight(ref LayerInfo info, float parentWidth, float parentHeight)
+    {
+        float oldTileW = info.tileWidth;
+        float tileW = parentHeight * info.spriteAspect;
+        info.tileWidth = tileW;
+
+        if (info.imageRTs == null) return;
+        for (int c = 0; c < info.imageRTs.Length; c++)
+        {
+            if (info.imageRTs[c] == null) continue;
+            info.imageRTs[c].anchoredPosition = new Vector2(c * tileW, 0f);
+            info.imageRTs[c].sizeDelta = new Vector2(tileW, 0f);
+        }
+
+        // Scale scroll position proportionally so the visual position stays consistent
+        if (info.containerRT != null && oldTileW > 0f)
+        {
+            Vector2 pos = info.containerRT.anchoredPosition;
+            pos.x *= tileW / oldTileW;
+            info.containerRT.anchoredPosition = pos;
+        }
+    }
+
     public void BuildLayers()
     {
-        // Clean up existing
-        if (layerPairs != null)
+        if (layerInfo != null)
         {
-            for (int i = 0; i < layerPairs.Length; i++)
+            for (int i = 0; i < layerInfo.Length; i++)
             {
-                if (layerPairs[i].containerRT != null)
-                    Destroy(layerPairs[i].containerRT.gameObject);
+                if (layerInfo[i].containerRT != null)
+                    Destroy(layerInfo[i].containerRT.gameObject);
             }
         }
 
         if (layers == null || layers.Length == 0)
         {
-            layerPairs = new LayerPair[0];
+            layerInfo = new LayerInfo[0];
             return;
         }
 
-        layerPairs = new LayerPair[layers.Length];
+        Canvas.ForceUpdateCanvases();
+
+        layerInfo = new LayerInfo[layers.Length];
         RectTransform parentRT = GetComponent<RectTransform>();
+        float parentWidth = parentRT.rect.width;
+        float parentHeight = parentRT.rect.height;
+        lastParentHeight = parentHeight;
 
         for (int i = 0; i < layers.Length; i++)
         {
@@ -118,16 +169,14 @@ public class ParallaxBackground : MonoBehaviour
 
             float heightRatio = layer.sprite.texture.height / referenceHeight;
 
-            // Create a container that holds two copies side by side
-            // Container is 2x parent width so both copies fit
             var containerGO = new GameObject($"ParallaxContainer_{i}");
             containerGO.transform.SetParent(parentRT, false);
             RectTransform containerRT = containerGO.AddComponent<RectTransform>();
 
-            // Set vertical anchors based on layer type
             switch (layer.verticalAnchor)
             {
                 case VerticalAnchor.Stretch:
+                case VerticalAnchor.FillHeight:
                     containerRT.anchorMin = Vector2.zero;
                     containerRT.anchorMax = Vector2.one;
                     break;
@@ -143,48 +192,109 @@ public class ParallaxBackground : MonoBehaviour
             containerRT.offsetMin = Vector2.zero;
             containerRT.offsetMax = Vector2.zero;
 
-            // Create image A (fills left half of doubled container area)
-            var imgA = CreateLayerImage($"Layer_{i}A_{layer.sprite.name}", containerRT, layer, 0f);
-            // Create image B (fills right half, adjacent to A)
-            var imgB = CreateLayerImage($"Layer_{i}B_{layer.sprite.name}", containerRT, layer, 1f);
-
-            layerPairs[i] = new LayerPair
+            if (layer.verticalAnchor == VerticalAnchor.FillHeight)
             {
-                containerRT = containerRT,
-                imageA = imgA,
-                imageB = imgB
-            };
+                float spriteAspect = (float)layer.sprite.texture.width / layer.sprite.texture.height;
+                float tileW = parentHeight * spriteAspect;
+
+                bool hasAlt = layer.alternateSprite != null;
+                int tileCount = hasAlt ? 2 : 1;
+                float patternWidth = tileW * tileCount;
+                int patternsNeeded = Mathf.CeilToInt(parentWidth / patternWidth) + 1;
+                int totalCopies = patternsNeeded * tileCount;
+
+                var imgs = new Image[totalCopies];
+                var rts = new RectTransform[totalCopies];
+                for (int c = 0; c < totalCopies; c++)
+                {
+                    bool useAlt = hasAlt && (c % 2 == 1);
+                    Sprite s = useAlt ? layer.alternateSprite : layer.sprite;
+                    CreateFillHeightImage($"Layer_{i}_{c}_{s.name}", containerRT, layer, s,
+                        c * tileW, tileW, out rts[c], out imgs[c]);
+                }
+
+                layerInfo[i] = new LayerInfo
+                {
+                    containerRT = containerRT,
+                    imageRTs = rts,
+                    images = imgs,
+                    tileWidth = tileW,
+                    tileCount = tileCount,
+                    spriteAspect = spriteAspect
+                };
+            }
+            else
+            {
+                Sprite spriteB = layer.alternateSprite != null ? layer.alternateSprite : layer.sprite;
+                var imgs = new Image[2];
+                var rts = new RectTransform[2];
+                rts[0] = CreateAnchoredImage($"Layer_{i}A_{layer.sprite.name}", containerRT, layer, 0f, layer.sprite, 1f);
+                imgs[0] = rts[0].GetComponent<Image>();
+                rts[1] = CreateAnchoredImage($"Layer_{i}B_{spriteB.name}", containerRT, layer, 1f, spriteB, 1f);
+                imgs[1] = rts[1].GetComponent<Image>();
+
+                layerInfo[i] = new LayerInfo
+                {
+                    containerRT = containerRT,
+                    imageRTs = rts,
+                    images = imgs,
+                    tileWidth = 0f,
+                    tileCount = 1,
+                    spriteAspect = 0f
+                };
+            }
         }
     }
 
-    private Image CreateLayerImage(string name, RectTransform parent, ParallaxLayer layer, float xOffset)
+    // FillHeight images: anchored to stretch vertically, explicit pixel width, positioned by anchoredPosition
+    private void CreateFillHeightImage(string name, RectTransform parent, ParallaxLayer layer, Sprite sprite,
+        float xPos, float width, out RectTransform rt, out Image img)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent, false);
+
+        rt = go.AddComponent<RectTransform>();
+        // Stretch vertically, pin to left edge
+        rt.anchorMin = new Vector2(0f, 0f);
+        rt.anchorMax = new Vector2(0f, 1f);
+        rt.pivot = new Vector2(0f, 0f);
+        rt.anchoredPosition = new Vector2(xPos, 0f);
+        rt.sizeDelta = new Vector2(width, 0f); // height from anchors, explicit width
+
+        img = go.AddComponent<Image>();
+        img.sprite = sprite;
+        img.type = Image.Type.Simple;
+        img.preserveAspect = false;
+        img.color = new Color(1f, 1f, 1f, layer.alpha);
+        img.raycastTarget = false;
+    }
+
+    // Standard anchor-based images (Stretch/Bottom/Top modes)
+    private RectTransform CreateAnchoredImage(string name, RectTransform parent, ParallaxLayer layer, float xOffset, Sprite sprite, float widthFraction)
     {
         var go = new GameObject(name);
         go.transform.SetParent(parent, false);
 
         RectTransform rt = go.AddComponent<RectTransform>();
-        // Each image is exactly parent-width wide, anchored to fill vertically
-        // xOffset=0 for the first copy, xOffset=1 for the second (placed to the right)
         rt.anchorMin = new Vector2(xOffset, 0f);
-        rt.anchorMax = new Vector2(xOffset + 1f, 1f);
+        rt.anchorMax = new Vector2(xOffset + widthFraction, 1f);
         rt.offsetMin = Vector2.zero;
         rt.offsetMax = Vector2.zero;
 
         Image img = go.AddComponent<Image>();
-        img.sprite = layer.sprite;
+        img.sprite = sprite;
         img.type = Image.Type.Simple;
         img.preserveAspect = false;
         img.color = new Color(1f, 1f, 1f, layer.alpha);
         img.raycastTarget = false;
 
-        return img;
+        return rt;
     }
 
     public void ApplyRandomTheme()
     {
         if (themes == null || themes.Length == 0) return;
 
-        // Collect enabled theme indices
         var enabled = new System.Collections.Generic.List<int>();
         for (int i = 0; i < themes.Length; i++)
         {

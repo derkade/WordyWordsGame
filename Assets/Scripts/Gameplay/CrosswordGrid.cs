@@ -125,9 +125,14 @@ public class CrosswordGrid : MonoBehaviour
 
     private float ComputeCellSize(int gridWidth, int gridHeight)
     {
+        // Force layout resolve so gridContainer.rect is accurate
+        Canvas.ForceUpdateCanvases();
+
         Rect containerRect = gridContainer.rect;
-        float availableWidth = containerRect.width - gridPadding * 2f;
-        float availableHeight = containerRect.height - gridPadding * 2f;
+        float shadowExp = Mathf.Max(shadowExpand, 0f);
+        // Reserve space for shadow expand on outermost cells
+        float availableWidth = containerRect.width - gridPadding * 2f - shadowExp * 2f;
+        float availableHeight = containerRect.height - gridPadding * 2f - shadowExp * 2f;
 
         float fitByWidth = (availableWidth + cellSpacing) / gridWidth - cellSpacing;
         float fitByHeight = (availableHeight + cellSpacing) / gridHeight - cellSpacing;
