@@ -15,6 +15,9 @@ Shader "UI/RoundedRect"
         _ShadowExpand ("Shadow Expand (px)", Float) = 0
         _BevelSize ("Bevel Size (px)", Float) = 0
         _BevelStrength ("Bevel Strength", Float) = 0
+        _GlossStrength ("Gloss Strength", Range(0, 1)) = 0
+        _GlossSize ("Gloss Size (how far down)", Range(0, 1)) = 0.5
+        _GlossCurve ("Gloss Curve (inset amount)", Range(0, 2)) = 0.3
 
         _StencilComp ("Stencil Comparison", Float) = 8
         _Stencil ("Stencil ID", Float) = 0
@@ -99,6 +102,9 @@ Shader "UI/RoundedRect"
             float _ShadowExpand;
             float _BevelSize;
             float _BevelStrength;
+            float _GlossStrength;
+            float _GlossSize;
+            float _GlossCurve;
 
             // SDF for a rounded rectangle centered at origin
             // p = point, b = half-size, r = corner radius
@@ -168,9 +174,19 @@ Shader "UI/RoundedRect"
                 float bevelShadow = min(lightDir, 0.0);
                 float bevel = bevelMask * _BevelStrength * (bevelHighlight + bevelShadow);
 
+                // Glossy highlight — curved inset on upper half
+                float glossY = p.y / max(shapeHalf.y, 1.0);  // -1 bottom, +1 top
+                float glossX = p.x / max(shapeHalf.x, 1.0);  // -1 left, +1 right
+                // Curved bottom edge: parabola cuts across top half
+                float glossCutoff = glossY - _GlossCurve * glossX * glossX;
+                float glossFade = smoothstep(0.0, _GlossSize, glossCutoff);
+                // Soften near shape edges using SDF distance
+                float glossEdge = saturate(-dist / max(edgeSoftness * 3.0, 1.0));
+                float gloss = glossFade * glossEdge * _GlossStrength;
+
                 // Composite fill over border
                 fixed4 fillCol = color;
-                fillCol.rgb = saturate(fillCol.rgb + bevel);
+                fillCol.rgb = saturate(fillCol.rgb + bevel + gloss);
                 fillCol.a *= innerAlpha;
 
                 fixed4 borderCol = _BorderColor;

@@ -72,6 +72,19 @@ public class UIParticleEffect : MonoBehaviour
     }
 
     /// <summary>
+    /// Stop all active particle coroutines and hide active particles.
+    /// </summary>
+    public void Stop()
+    {
+        StopAllCoroutines();
+        foreach (var rt in pool)
+        {
+            if (rt != null)
+                rt.gameObject.SetActive(false);
+        }
+    }
+
+    /// <summary>
     /// Fire particles from the center of this object.
     /// </summary>
     public void Play()

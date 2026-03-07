@@ -58,6 +58,25 @@ public class CrosswordGrid : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] private float revealedBevelStrength = 0.25f;
 
+    [Header("Gloss (Unrevealed)")]
+    [Tooltip("Intensity of the glossy highlight on unrevealed cells")]
+    [Range(0f, 1f)]
+    [SerializeField] private float glossStrength = 0.35f;
+    [Tooltip("How far down the gloss extends (0=top edge only, 1=full tile)")]
+    [Range(0f, 1f)]
+    [SerializeField] private float glossSize = 0.5f;
+    [Tooltip("Curvature of the gloss inset (0=flat, higher=more curved)")]
+    [Range(0f, 2f)]
+    [SerializeField] private float glossCurve = 0.4f;
+
+    [Header("Gloss (Revealed)")]
+    [Range(0f, 1f)]
+    [SerializeField] private float revealedGlossStrength = 0.2f;
+    [Range(0f, 1f)]
+    [SerializeField] private float revealedGlossSize = 0.5f;
+    [Range(0f, 2f)]
+    [SerializeField] private float revealedGlossCurve = 0.4f;
+
     [Header("Debug")]
     [Tooltip("Show all letters on the grid (cheat mode)")]
     [SerializeField] private bool cheatShowLetters = false;
@@ -159,12 +178,18 @@ public class CrosswordGrid : MonoBehaviour
             SetSharedMaterialProps(cellMaterial, expandedSize, shadowExp);
             cellMaterial.SetFloat("_BevelSize", bevelSize);
             cellMaterial.SetFloat("_BevelStrength", bevelStrength);
+            cellMaterial.SetFloat("_GlossStrength", glossStrength);
+            cellMaterial.SetFloat("_GlossSize", glossSize);
+            cellMaterial.SetFloat("_GlossCurve", glossCurve);
 
             // Revealed cell material (subtler bevel for dark tiles)
             revealedCellMaterial = new Material(roundedRectMaterial);
             SetSharedMaterialProps(revealedCellMaterial, expandedSize, shadowExp);
             revealedCellMaterial.SetFloat("_BevelSize", revealedBevelSize);
             revealedCellMaterial.SetFloat("_BevelStrength", revealedBevelStrength);
+            revealedCellMaterial.SetFloat("_GlossStrength", revealedGlossStrength);
+            revealedCellMaterial.SetFloat("_GlossSize", revealedGlossSize);
+            revealedCellMaterial.SetFloat("_GlossCurve", revealedGlossCurve);
         }
 
         // Center the grid in the container

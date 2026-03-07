@@ -23,6 +23,10 @@ public class GameManager : MonoBehaviour
     [SerializeField] private LetterWheel letterWheel;
     [Tooltip("Reference to the SwipeController that handles swipe input and word evaluation")]
     [SerializeField] private SwipeController swipeController;
+    [Tooltip("RectTransform of the WheelArea (auto-aligned horizontally to ButtonBar)")]
+    [SerializeField] private RectTransform wheelAreaRT;
+    [Tooltip("RectTransform of the ButtonBar (alignment reference for wheel)")]
+    [SerializeField] private RectTransform buttonBarRT;
 
     [Header("UI")]
     [Tooltip("Displays the current level number")]
@@ -150,6 +154,20 @@ public class GameManager : MonoBehaviour
 
         UpdateCoinDisplay();
         LoadLevel(currentLevelIndex);
+
+        // Align wheel center to button bar center after layout settles
+        StartCoroutine(AlignWheelToButtons());
+    }
+
+    private IEnumerator AlignWheelToButtons()
+    {
+        yield return null; // wait one frame for layout
+        if (wheelAreaRT != null && buttonBarRT != null)
+        {
+            Vector3 pos = wheelAreaRT.position;
+            pos.x = buttonBarRT.position.x;
+            wheelAreaRT.position = pos;
+        }
     }
 
     private void OnDestroy()
@@ -573,6 +591,9 @@ public class GameManager : MonoBehaviour
 
     private void OnNextLevelClicked()
     {
+        if (levelCompleteParticles != null)
+            levelCompleteParticles.Stop();
+
         if (useRandomLevels)
         {
             LoadLevel(currentLevelIndex + 1);
