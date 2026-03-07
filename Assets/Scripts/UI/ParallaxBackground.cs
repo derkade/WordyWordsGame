@@ -23,6 +23,8 @@ public class ParallaxBackground : MonoBehaviour
     public class ParallaxTheme
     {
         public string name;
+        [Tooltip("Uncheck to exclude this theme from random selection")]
+        public bool enabled = true;
         public ParallaxLayer[] layers;
     }
 
@@ -182,14 +184,23 @@ public class ParallaxBackground : MonoBehaviour
     {
         if (themes == null || themes.Length == 0) return;
 
-        int index;
-        if (themes.Length == 1)
+        // Collect enabled theme indices
+        var enabled = new System.Collections.Generic.List<int>();
+        for (int i = 0; i < themes.Length; i++)
         {
-            index = 0;
+            if (themes[i].enabled)
+                enabled.Add(i);
+        }
+        if (enabled.Count == 0) return;
+
+        int index;
+        if (enabled.Count == 1)
+        {
+            index = enabled[0];
         }
         else
         {
-            do { index = Random.Range(0, themes.Length); }
+            do { index = enabled[Random.Range(0, enabled.Count)]; }
             while (index == lastThemeIndex);
         }
 

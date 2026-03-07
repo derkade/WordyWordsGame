@@ -86,6 +86,21 @@ public class GameManager : MonoBehaviour
     [Tooltip("Streak color for bonus word trails")]
     [SerializeField] private Color bonusStreakColor = new Color(0.3f, 0.6f, 1f, 1f);
 
+    [Header("Grid Word Streaks")]
+    [SerializeField] private bool gridStreaksEnabled = true;
+    [SerializeField] private bool gridStreaksGlowOnTop = true;
+    [SerializeField] private bool gridStreaksShowGlow = true;
+
+    [Header("Bonus Word Streaks")]
+    [SerializeField] private bool bonusStreakEnabled = true;
+    [SerializeField] private bool bonusStreakGlowOnTop = true;
+    [SerializeField] private bool bonusStreakShowGlow = true;
+
+    [Header("Hint Streaks")]
+    [SerializeField] private bool hintStreakEnabled = true;
+    [SerializeField] private bool hintStreakGlowOnTop = true;
+    [SerializeField] private bool hintStreakShowGlow = true;
+
     private int currentLevelIndex;
     private int coins;
     private int displayedCoins;
@@ -303,9 +318,9 @@ public class GameManager : MonoBehaviour
                     if (correctWordParticles != null)
                         correctWordParticles.PlaySequence(cellTransforms, 0.05f);
 
-                    if (coinStreakManager != null && coinText != null)
+                    if (gridStreaksEnabled && coinStreakManager != null && coinText != null)
                     {
-                        coinStreakManager.PlayStreaks(cellTransforms, textCenter);
+                        coinStreakManager.PlayStreaks(cellTransforms, textCenter, gridStreaksGlowOnTop, gridStreaksShowGlow);
                         float travelTime = coinStreakManager.TravelDuration;
                         float stagger = coinStreakManager.StaggerDelay;
                         for (int j = 0; j < cellTransforms.Count; j++)
@@ -323,9 +338,9 @@ public class GameManager : MonoBehaviour
             if (correctWordParticles != null)
                 correctWordParticles.PlaySequence(cellTransforms, 0.05f);
 
-            if (coinStreakManager != null && coinText != null)
+            if (gridStreaksEnabled && coinStreakManager != null && coinText != null)
             {
-                coinStreakManager.PlayStreaks(cellTransforms, textCenter);
+                coinStreakManager.PlayStreaks(cellTransforms, textCenter, gridStreaksGlowOnTop, gridStreaksShowGlow);
                 float travelTime = coinStreakManager.TravelDuration;
                 float stagger = coinStreakManager.StaggerDelay;
                 for (int i = 0; i < cellTransforms.Count; i++)
@@ -436,11 +451,11 @@ public class GameManager : MonoBehaviour
             StartCoroutine(ShowExtraWordFlash());
 
         // Streak from bonus count to word bank button
-        if (coinStreakManager != null && extraWordsCountText != null && wordBankButton != null)
+        if (bonusStreakEnabled && coinStreakManager != null && extraWordsCountText != null && wordBankButton != null)
         {
             Vector3 fromPos = extraWordsCountText.transform.position;
             Vector3 toPos = wordBankButton.transform.position;
-            coinStreakManager.PlaySingleStreak(fromPos, toPos, bonusStreakColor);
+            coinStreakManager.PlaySingleStreak(fromPos, toPos, bonusStreakColor, bonusStreakGlowOnTop, bonusStreakShowGlow);
             StartCoroutine(WordBankArrivalBurst());
         }
     }
@@ -497,11 +512,11 @@ public class GameManager : MonoBehaviour
             AddCoins(-hintCost);
 
             // Fire a streak from the score to the hint cell
-            if (coinStreakManager != null && hintCellRT != null && coinText != null)
+            if (hintStreakEnabled && coinStreakManager != null && hintCellRT != null && coinText != null)
             {
                 Vector3 fromPos = coinText.transform.TransformPoint(coinText.textBounds.center);
                 Vector3 toPos = hintCellRT.position;
-                coinStreakManager.PlaySingleStreak(fromPos, toPos);
+                coinStreakManager.PlaySingleStreak(fromPos, toPos, null, hintStreakGlowOnTop, hintStreakShowGlow);
 
                 // Delay the cell reveal and completed-word effects until streak arrives
                 StartCoroutine(HintArrival(completedWords));

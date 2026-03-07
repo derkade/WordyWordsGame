@@ -129,7 +129,7 @@ public class CoinStreakManager : MonoBehaviour
         return localPos;
     }
 
-    public void PlayStreaks(List<RectTransform> cellTransforms, Vector3 targetWorldPos)
+    public void PlayStreaks(List<RectTransform> cellTransforms, Vector3 targetWorldPos, bool glowOnTop = true, bool showGlow = true)
     {
         if (cellTransforms == null || cellTransforms.Count == 0) return;
 
@@ -160,12 +160,13 @@ public class CoinStreakManager : MonoBehaviour
             poolCoreTrails[idx].Initialize(startLocal, targetLocal, delay, travelDuration, arc);
 
             // Glow copies the exact same Bezier path
-            poolGlowObjects[idx].SetActive(true);
-            poolGlowTrails[idx].CopyPathFrom(poolCoreTrails[idx]);
+            if (showGlow)
+            {
+                poolGlowObjects[idx].SetActive(true);
+                poolGlowTrails[idx].CopyPathFrom(poolCoreTrails[idx]);
+            }
 
-            // Render order: core behind, glow on top
-            poolCoreObjects[idx].transform.SetAsLastSibling();
-            poolGlowObjects[idx].transform.SetAsLastSibling();
+            SetLayerOrder(idx, glowOnTop, showGlow);
         }
     }
 
@@ -173,7 +174,7 @@ public class CoinStreakManager : MonoBehaviour
     /// Play a single streak from one world position to another.
     /// Optional color override (e.g., blue for bonus words, default gold for hints).
     /// </summary>
-    public void PlaySingleStreak(Vector3 fromWorldPos, Vector3 toWorldPos, Color? colorOverride = null)
+    public void PlaySingleStreak(Vector3 fromWorldPos, Vector3 toWorldPos, Color? colorOverride = null, bool glowOnTop = true, bool showGlow = true)
     {
         if (availableCount <= 0) return;
 
@@ -201,11 +202,33 @@ public class CoinStreakManager : MonoBehaviour
         poolCoreObjects[idx].SetActive(true);
         poolCoreTrails[idx].Initialize(startLocal, endLocal, 0f, travelDuration, arc);
 
-        poolGlowObjects[idx].SetActive(true);
-        poolGlowTrails[idx].CopyPathFrom(poolCoreTrails[idx]);
+        if (showGlow)
+        {
+            poolGlowObjects[idx].SetActive(true);
+            poolGlowTrails[idx].CopyPathFrom(poolCoreTrails[idx]);
+        }
 
-        poolCoreObjects[idx].transform.SetAsLastSibling();
-        poolGlowObjects[idx].transform.SetAsLastSibling();
+        SetLayerOrder(idx, glowOnTop, showGlow);
+    }
+
+    private void SetLayerOrder(int idx, bool glowOnTop, bool showGlow)
+    {
+        if (!showGlow)
+        {
+            poolCoreObjects[idx].transform.SetAsLastSibling();
+            return;
+        }
+
+        if (glowOnTop)
+        {
+            poolCoreObjects[idx].transform.SetAsLastSibling();
+            poolGlowObjects[idx].transform.SetAsLastSibling();
+        }
+        else
+        {
+            poolGlowObjects[idx].transform.SetAsLastSibling();
+            poolCoreObjects[idx].transform.SetAsLastSibling();
+        }
     }
 
     private void ReturnToPool(int idx)
