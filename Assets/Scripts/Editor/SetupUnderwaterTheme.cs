@@ -45,6 +45,7 @@ public static class SetupUnderwaterTheme
         var theme = themesProp.GetArrayElementAtIndex(idx);
         theme.FindPropertyRelative("name").stringValue = "Underwater";
         theme.FindPropertyRelative("enabled").boolValue = true;
+        theme.FindPropertyRelative("revealedCellColor").colorValue = new Color(0.18f, 0.28f, 0.38f, 1f);
 
         var layersProp = theme.FindPropertyRelative("layers");
         layersProp.arraySize = 3;

@@ -27,6 +27,8 @@ public class CrosswordGrid : MonoBehaviour
     [SerializeField] private Color cellDefaultColor = new Color(1f, 1f, 1f, 0.8f);
     [Tooltip("Background color of revealed cells")]
     [SerializeField] private Color cellRevealedColor = new Color(0.3f, 0.3f, 0.5f, 1f);
+
+    public void SetRevealedCellColor(Color color) { cellRevealedColor = color; }
     [Tooltip("Text color for revealed letters")]
     [SerializeField] private Color letterColor = new Color(1f, 1f, 1f, 1f);
     [Tooltip("Corner radius for the outer cell border in pixels")]

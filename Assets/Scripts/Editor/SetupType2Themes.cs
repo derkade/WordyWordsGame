@@ -93,6 +93,11 @@ public static class SetupType2Themes
             var theme = themesProp.GetArrayElementAtIndex(idx);
             theme.FindPropertyRelative("name").stringValue = def.name;
             theme.FindPropertyRelative("enabled").boolValue = true;
+            // Same revealed colors as base themes (Jungle2=Jungle, etc.)
+            Color rc = def.name == "Jungle2" ? new Color(0.22f, 0.35f, 0.20f, 1f)
+                      : def.name == "Desert2" ? new Color(0.40f, 0.30f, 0.18f, 1f)
+                      : new Color(0.25f, 0.32f, 0.42f, 1f);
+            theme.FindPropertyRelative("revealedCellColor").colorValue = rc;
 
             var layersProp = theme.FindPropertyRelative("layers");
             layersProp.arraySize = 5;

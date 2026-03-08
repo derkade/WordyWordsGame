@@ -4,7 +4,7 @@ import numpy as np
 import os, math
 
 BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ENV = os.path.join(BASE, "Assets", "Underwater Diving", "Art", "environment")
+ENV = os.path.join(BASE, "Assets", "Art", "Backgrounds", "UnderwaterDiving", "source")
 OUT = os.path.join(BASE, "Assets", "Art", "Backgrounds", "UnderwaterDiving", "foreground.png")
 
 tiles = Image.open(os.path.join(ENV, "tiles.png")).convert("RGBA")
@@ -42,11 +42,11 @@ draw = ImageDraw.Draw(canvas)
 def paste(piece, x, y):
     canvas.paste(piece, (int(x), int(y)), piece)
 
-# Wall thicknesses
-TOP = 170
-BOT = 160
-LEFT = 190
-RIGHT = 210
+# Wall thicknesses — thick to leave a tight cave opening
+TOP = 300
+BOT = 280
+LEFT = 330
+RIGHT = 360
 
 # --- STEP 1: Thick solid dark walls with wavy inner edges ---
 
@@ -55,8 +55,8 @@ pts = [(0, 0), (W, 0)]
 for x in range(W, -1, -3):
     wave = math.sin(x*0.007)*35 + math.sin(x*0.02)*18 + math.sin(x*0.055)*8
     y = TOP + wave
-    if x < 250: y += (250-x)*0.6
-    if x > W-300: y += (x-(W-300))*0.7
+    if x < 400: y += (400-x)*0.5
+    if x > W-450: y += (x-(W-450))*0.5
     # Extra bulge for stalactite positions
     if 350 < x < 550: y += 40 * math.exp(-((x-450)/80)**2)
     if W-600 < x < W-400: y += 40 * math.exp(-((x-(W-500))/80)**2)
@@ -70,8 +70,8 @@ pts = [(0, H), (W, H)]
 for x in range(W, -1, -3):
     wave = math.sin(x*0.009+2)*30 + math.sin(x*0.025)*14 + math.sin(x*0.06)*7
     y = H - BOT - wave
-    if x < 250: y -= (250-x)*0.5
-    if x > W-300: y -= (x-(W-300))*0.6
+    if x < 400: y -= (400-x)*0.4
+    if x > W-450: y -= (x-(W-450))*0.5
     pts.append((x, int(y)))
 draw.polygon(pts, fill=fill)
 
@@ -81,7 +81,7 @@ for y in range(H, -1, -3):
     wave = math.sin(y*0.01)*28 + math.sin(y*0.03)*14
     x = LEFT + wave
     cd = abs(y - H/2) / (H/2)
-    x += (1-cd)*45
+    x += (1-cd)*65
     pts.append((int(x), y))
 draw.polygon(pts, fill=fill)
 
@@ -91,7 +91,7 @@ for y in range(H, -1, -3):
     wave = math.sin(y*0.011+1)*32 + math.sin(y*0.035)*16
     x = W - RIGHT - wave
     cd = abs(y - H/2) / (H/2)
-    x -= (1-cd)*55
+    x -= (1-cd)*75
     pts.append((int(x), y))
 draw.polygon(pts, fill=fill)
 

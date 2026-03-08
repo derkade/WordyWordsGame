@@ -45,6 +45,7 @@ public static class SetupUnderwaterDivingTheme
         var theme = themesProp.GetArrayElementAtIndex(idx);
         theme.FindPropertyRelative("name").stringValue = "UnderwaterDiving";
         theme.FindPropertyRelative("enabled").boolValue = true;
+        theme.FindPropertyRelative("revealedCellColor").colorValue = new Color(0.15f, 0.25f, 0.30f, 1f);
 
         var layersProp = theme.FindPropertyRelative("layers");
         layersProp.arraySize = 3;
@@ -53,10 +54,10 @@ public static class SetupUnderwaterDivingTheme
         // Layer 1: midground.png — coral vines, larger oval for parallax (grid tiled)
         // Layer 2: foreground.png — assembled cave frame, single image (not tiled)
         string[] spritePaths = { basePath + "background.png", basePath + "midground.png", basePath + "foreground.png" };
-        float[] speeds = { 0.025f, 0.025f, 0.025f };
+        float[] speeds = { 0.3f, 0.6f, 1.0f };  // depth factor: bg barely moves, fg moves most
         float[] alphas = { 1f, 1f, 1f };
-        float[] radiiX = { 80f, 140f, 140f };
-        float[] radiiY = { 50f, 90f, 90f };
+        float[] radiiX = { 140f, 140f, 140f };  // same base orbit for all
+        float[] radiiY = { 90f, 90f, 90f };
         bool[] tileGrid = { true, true, false }; // foreground is single image, not tiled
 
         for (int i = 0; i < 3; i++)

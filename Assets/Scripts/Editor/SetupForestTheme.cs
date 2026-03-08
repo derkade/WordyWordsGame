@@ -64,6 +64,7 @@ public static class SetupForestTheme
         var theme = themesProp.GetArrayElementAtIndex(idx);
         theme.FindPropertyRelative("name").stringValue = "Forest";
         theme.FindPropertyRelative("enabled").boolValue = true;
+        theme.FindPropertyRelative("revealedCellColor").colorValue = new Color(0.20f, 0.30f, 0.18f, 1f);
 
         var layersProp = theme.FindPropertyRelative("layers");
         layersProp.arraySize = 10;

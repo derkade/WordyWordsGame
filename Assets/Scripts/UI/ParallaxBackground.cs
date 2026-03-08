@@ -36,6 +36,8 @@ public class ParallaxBackground : MonoBehaviour
         public string name;
         [Tooltip("Uncheck to exclude this theme from random selection")]
         public bool enabled = true;
+        [Tooltip("Revealed grid cell tint for this theme (keep dark/muted)")]
+        public Color revealedCellColor = new Color(0.3f, 0.3f, 0.5f, 1f);
         public ParallaxLayer[] layers;
     }
 
@@ -51,6 +53,12 @@ public class ParallaxBackground : MonoBehaviour
     [SerializeField] private float referenceHeight = 1080f;
 
     private int lastThemeIndex = -1;
+
+    /// <summary>Revealed cell color from the currently active theme.</summary>
+    public Color ActiveRevealedCellColor =>
+        (themes != null && lastThemeIndex >= 0 && lastThemeIndex < themes.Length)
+            ? themes[lastThemeIndex].revealedCellColor
+            : new Color(0.3f, 0.3f, 0.5f, 1f);
 
     private struct LayerInfo
     {
@@ -68,6 +76,7 @@ public class ParallaxBackground : MonoBehaviour
 
     private LayerInfo[] layerInfo;
     private float lastParentHeight;
+    private float sharedOvalAngle;
 
     private void Awake()
     {
@@ -95,6 +104,11 @@ public class ParallaxBackground : MonoBehaviour
             }
         }
 
+        // Advance shared oval angle (one "camera" orbit)
+        sharedOvalAngle += globalSpeedMultiplier * Mathf.PI * 2f * Time.deltaTime * 0.025f;
+        if (sharedOvalAngle > Mathf.PI * 2f)
+            sharedOvalAngle -= Mathf.PI * 2f;
+
         for (int i = 0; i < layers.Length; i++)
         {
             if (layerInfo[i].containerRT == null) continue;
@@ -113,12 +127,10 @@ public class ParallaxBackground : MonoBehaviour
 
             if (layers[i].scrollMode == ScrollMode.OvalDrift)
             {
-                // Orbit along an ellipse
-                layerInfo[i].ovalAngle += speed * Mathf.PI * 2f * Time.deltaTime;
-                if (layerInfo[i].ovalAngle > Mathf.PI * 2f)
-                    layerInfo[i].ovalAngle -= Mathf.PI * 2f;
-                float x = layers[i].ovalRadiusX * Mathf.Cos(layerInfo[i].ovalAngle);
-                float y = layers[i].ovalRadiusY * Mathf.Sin(layerInfo[i].ovalAngle);
+                // Classic parallax: shared camera angle, scrollSpeed is depth factor
+                // Layers with higher speed move more (closer to camera)
+                float x = layers[i].ovalRadiusX * speed * Mathf.Cos(sharedOvalAngle);
+                float y = layers[i].ovalRadiusY * speed * Mathf.Sin(sharedOvalAngle);
                 crt.anchoredPosition = new Vector2(x, y);
             }
             else

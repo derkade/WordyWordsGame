@@ -20,6 +20,12 @@ public static class SetupParallaxLayers
         "Assets/Art/Backgrounds/Desert/",
         "Assets/Art/Backgrounds/IceAge/"
     };
+    // Muted revealed cell colors per theme (dark enough for white text)
+    private static readonly Color[] themeRevealedColors = {
+        new Color(0.22f, 0.35f, 0.20f, 1f),  // Jungle — dark mossy green
+        new Color(0.40f, 0.30f, 0.18f, 1f),  // Desert — dark sandy brown
+        new Color(0.25f, 0.32f, 0.42f, 1f),  // IceAge — dark steel blue
+    };
 
     [MenuItem("Tools/Setup All Parallax Themes")]
     public static void SetupAllThemes()
@@ -46,6 +52,7 @@ public static class SetupParallaxLayers
         {
             var themeProp = themesProp.GetArrayElementAtIndex(t);
             themeProp.FindPropertyRelative("name").stringValue = themeNames[t];
+            themeProp.FindPropertyRelative("revealedCellColor").colorValue = themeRevealedColors[t];
 
             var layersProp = themeProp.FindPropertyRelative("layers");
             layersProp.arraySize = layerFiles.Length;

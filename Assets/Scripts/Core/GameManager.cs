@@ -234,7 +234,10 @@ public class GameManager : MonoBehaviour
 
         // Switch parallax theme
         if (parallaxBackground != null)
+        {
             parallaxBackground.ApplyRandomTheme();
+            crosswordGrid.SetRevealedCellColor(parallaxBackground.ActiveRevealedCellColor);
+        }
 
         // Build grid
         crosswordGrid.BuildGrid(level);
