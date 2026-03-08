@@ -149,6 +149,9 @@ Always run `refresh_unity(compile="request")` followed by `read_console(types=["
 ### Before Committing
 Always save the active scene via `manage_scene(action="save")` so any inspector changes are captured in the commit.
 
+### MCP Usage
+Minimize unnecessary MCP tool calls. Batch related operations when possible. Use `manage_scene` to read scene state once rather than making multiple small queries. Prefer editing script files directly over using MCP when possible — it's faster and uses fewer tokens.
+
 ### Debugging Stubborn Problems
 If a problem is continually acting unresolved, decompose the problem into independent logical components. Validate each one individually. Then, synthesize your final answer from the validated pieces.
 
