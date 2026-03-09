@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -174,11 +175,19 @@ public class LetterWheel : MonoBehaviour
         }
     }
 
+    private bool isShuffling;
+
     public void ShuffleTiles()
     {
-        if (tiles.Count <= 1) return;
+        if (tiles.Count <= 1 || isShuffling) return;
+        StartCoroutine(AnimatedShuffle());
+    }
 
-        // Fisher-Yates shuffle, retry if result is the same arrangement
+    private IEnumerator AnimatedShuffle()
+    {
+        isShuffling = true;
+
+        // Fisher-Yates shuffle to get new letter order
         string previous = currentLetters;
         char[] chars;
         int attempts = 0;
@@ -193,13 +202,73 @@ public class LetterWheel : MonoBehaviour
             attempts++;
         } while (new string(chars) == previous && attempts < 10);
 
-        currentLetters = new string(chars);
+        // Build a mapping: for each new slot, which old tile goes there?
+        // Old tile i has letter previous[i], new slot j needs chars[j]
+        // Find where each tile needs to move
+        var oldPositions = new Vector2[tiles.Count];
         for (int i = 0; i < tiles.Count; i++)
+            oldPositions[i] = tiles[i].GetComponent<RectTransform>().anchoredPosition;
+
+        // Map: newIndex -> oldIndex (which tile moves to which slot)
+        string newStr = new string(chars);
+        var used = new bool[tiles.Count];
+        var moveMap = new int[tiles.Count]; // moveMap[newSlot] = oldTileIndex
+        for (int n = 0; n < chars.Length; n++)
         {
-            tiles[i].SetLetter(chars[i]);
-            tiles[i].transform.localScale = Vector3.one; // Reset before animating
-            StartCoroutine(TweenHelper.PunchScale(tiles[i].transform, Vector3.one * 0.15f, 0.25f));
+            for (int o = 0; o < previous.Length; o++)
+            {
+                if (!used[o] && previous[o] == chars[n])
+                {
+                    moveMap[n] = o;
+                    used[o] = true;
+                    break;
+                }
+            }
         }
+
+        // Animate each tile from its current position to its new position
+        float duration = 0.35f;
+        float elapsed = 0f;
+
+        // Cache start positions per tile (indexed by old tile index)
+        var startPos = new Vector2[tiles.Count];
+        var endPos = new Vector2[tiles.Count];
+        for (int n = 0; n < tiles.Count; n++)
+        {
+            int oldIdx = moveMap[n];
+            startPos[oldIdx] = oldPositions[oldIdx];
+            endPos[oldIdx] = oldPositions[n]; // target is the new slot position
+        }
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = TweenHelper.EaseOutBack(Mathf.Clamp01(elapsed / duration));
+            for (int i = 0; i < tiles.Count; i++)
+            {
+                var rt = tiles[i].GetComponent<RectTransform>();
+                rt.anchoredPosition = Vector2.LerpUnclamped(startPos[i], endPos[i], t);
+            }
+            yield return null;
+        }
+
+        // Snap to final positions and update letters
+        currentLetters = newStr;
+        // Reorder tiles list to match new positions
+        var newTiles = new List<LetterTile>(tiles.Count);
+        for (int n = 0; n < tiles.Count; n++)
+            newTiles.Add(tiles[moveMap[n]]);
+
+        for (int i = 0; i < newTiles.Count; i++)
+        {
+            var rt = newTiles[i].GetComponent<RectTransform>();
+            rt.anchoredPosition = oldPositions[i];
+            newTiles[i].SetLetter(chars[i]);
+            newTiles[i].WheelIndex = i;
+        }
+
+        tiles = newTiles;
+        isShuffling = false;
     }
 
     public void DeselectAll()

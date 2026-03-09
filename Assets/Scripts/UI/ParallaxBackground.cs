@@ -69,6 +69,7 @@ public class ParallaxBackground : MonoBehaviour
         public int tileCount;       // tiles per pattern (1 = no alternate, 2 = A/B)
         public float spriteAspect;  // sprite width/height (0 = standard mode)
         public float ovalAngle;     // current angle for OvalDrift
+        public float direction;     // +1 or -1, randomized per build
         public float tileHeight;    // for OvalDrift grid tiling
         public int gridCols;        // columns in OvalDrift grid
         public int gridRows;        // rows in OvalDrift grid
@@ -77,6 +78,7 @@ public class ParallaxBackground : MonoBehaviour
     private LayerInfo[] layerInfo;
     private float lastParentHeight;
     private float sharedOvalAngle;
+    private float scrollDirection;  // +1 or -1, randomized each level
 
     private void Awake()
     {
@@ -129,7 +131,7 @@ public class ParallaxBackground : MonoBehaviour
             {
                 // Classic parallax: shared camera angle, scrollSpeed is depth factor
                 // Layers with higher speed move more (closer to camera)
-                float x = layers[i].ovalRadiusX * speed * Mathf.Cos(sharedOvalAngle);
+                float x = layers[i].ovalRadiusX * speed * Mathf.Cos(sharedOvalAngle) * scrollDirection;
                 float y = layers[i].ovalRadiusY * speed * Mathf.Sin(sharedOvalAngle);
                 crt.anchoredPosition = new Vector2(x, y);
             }
@@ -138,7 +140,7 @@ public class ParallaxBackground : MonoBehaviour
                 Vector2 pos = crt.anchoredPosition;
                 float parentWidth2 = ((RectTransform)crt.parent).rect.width;
 
-                pos.x -= speed * parentWidth2 * Time.deltaTime;
+                pos.x -= speed * parentWidth2 * Time.deltaTime * scrollDirection;
 
                 float wrapDist;
                 if (layerInfo[i].tileWidth > 0)
@@ -147,6 +149,8 @@ public class ParallaxBackground : MonoBehaviour
                     wrapDist = parentWidth2;
                 if (pos.x <= -wrapDist)
                     pos.x += wrapDist;
+                else if (pos.x >= wrapDist)
+                    pos.x -= wrapDist;
 
                 crt.anchoredPosition = pos;
             }
@@ -195,6 +199,7 @@ public class ParallaxBackground : MonoBehaviour
 
         Canvas.ForceUpdateCanvases();
 
+        scrollDirection = Random.value < 0.5f ? -1f : 1f;
         layerInfo = new LayerInfo[layers.Length];
         RectTransform parentRT = GetComponent<RectTransform>();
         float parentWidth = parentRT.rect.width;
@@ -326,16 +331,19 @@ public class ParallaxBackground : MonoBehaviour
                 int tileCount = hasAlt ? 2 : 1;
                 float patternWidth = tileW * tileCount;
                 int patternsNeeded = Mathf.CeilToInt(parentWidth / patternWidth) + 1;
-                int totalCopies = patternsNeeded * tileCount;
+                // Extra pattern on the left so scrolling right is covered
+                int totalCopies = (patternsNeeded + 1) * tileCount;
 
                 var imgs = new Image[totalCopies];
                 var rts = new RectTransform[totalCopies];
+                // Start one pattern to the left of origin
+                float startX = -patternWidth;
                 for (int c = 0; c < totalCopies; c++)
                 {
                     bool useAlt = hasAlt && (c % 2 == 1);
                     Sprite s = useAlt ? layer.alternateSprite : layer.sprite;
                     CreateFillHeightImage($"Layer_{i}_{c}_{s.name}", containerRT, layer, s,
-                        c * tileW, tileW, out rts[c], out imgs[c]);
+                        startX + c * tileW, tileW, out rts[c], out imgs[c]);
                 }
 
                 layerInfo[i] = new LayerInfo
@@ -351,12 +359,15 @@ public class ParallaxBackground : MonoBehaviour
             else
             {
                 Sprite spriteB = layer.alternateSprite != null ? layer.alternateSprite : layer.sprite;
-                var imgs = new Image[2];
-                var rts = new RectTransform[2];
-                rts[0] = CreateAnchoredImage($"Layer_{i}A_{layer.sprite.name}", containerRT, layer, 0f, layer.sprite, 1f);
+                var imgs = new Image[3];
+                var rts = new RectTransform[3];
+                // One copy to the left for right-scrolling coverage
+                rts[0] = CreateAnchoredImage($"Layer_{i}L_{spriteB.name}", containerRT, layer, -1f, spriteB, 1f);
                 imgs[0] = rts[0].GetComponent<Image>();
-                rts[1] = CreateAnchoredImage($"Layer_{i}B_{spriteB.name}", containerRT, layer, 1f, spriteB, 1f);
+                rts[1] = CreateAnchoredImage($"Layer_{i}A_{layer.sprite.name}", containerRT, layer, 0f, layer.sprite, 1f);
                 imgs[1] = rts[1].GetComponent<Image>();
+                rts[2] = CreateAnchoredImage($"Layer_{i}B_{spriteB.name}", containerRT, layer, 1f, spriteB, 1f);
+                imgs[2] = rts[2].GetComponent<Image>();
 
                 layerInfo[i] = new LayerInfo
                 {
