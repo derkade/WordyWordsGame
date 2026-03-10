@@ -227,7 +227,7 @@ public class LetterWheel : MonoBehaviour
         }
 
         // Animate each tile from its current position to its new position
-        float duration = 0.35f;
+        float duration = 0.5f;
         float elapsed = 0f;
 
         // Cache start positions per tile (indexed by old tile index)

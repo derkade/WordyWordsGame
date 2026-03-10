@@ -313,10 +313,10 @@ public class GameManager : MonoBehaviour
             float delay = launchIndex * tileLaunchStagger;
             launchIndex++;
 
-            // Already-revealed cells just bounce in sequence (no flying tile)
+            // Already-revealed cells punch in sequence alongside the flying tiles
             if (idx < alreadyRevealed.Count && alreadyRevealed[idx])
             {
-                StartCoroutine(DelayedCellPunch(cellTransforms[idx], delay + tileFlightDuration));
+                StartCoroutine(DelayedCellPunch(cellTransforms[idx], delay + tileFlightDuration * 0.37f));
                 continue;
             }
 
@@ -435,6 +435,7 @@ public class GameManager : MonoBehaviour
         Vector3 endPos = toWorld;
         Vector3 startScale = Vector3.one * 0.3f;
         Vector3 endScale = Vector3.one;
+        bool landed = false;
 
         while (elapsed < duration)
         {
@@ -447,13 +448,20 @@ public class GameManager : MonoBehaviour
 
             rt.position = Vector3.Lerp(startPos, endPos, eased);
             rt.localScale = Vector3.Lerp(startScale, endScale, eased);
+
+            // Fire onLand the first frame the tile reaches the target
+            if (!landed && eased >= 0.99f)
+            {
+                landed = true;
+                onLand?.Invoke();
+            }
             yield return null;
         }
 
         if (tile == null) yield break;
         rt.position = endPos;
         rt.localScale = endScale;
-        onLand?.Invoke();
+        if (!landed) onLand?.Invoke();
     }
 
     private void HandleExtraWordFound(string word)
