@@ -66,6 +66,9 @@ public class LetterWheel : MonoBehaviour
     private string currentLetters;
     private Material wheelMaterial;
 
+    /// <summary>Expanded size of the wheel background (including shadow expand), set after BuildWheel.</summary>
+    public float WheelBackgroundSize { get; private set; }
+
     private void Start()
     {
         // Apply SDF rounded rect as circle for wheel background
@@ -123,6 +126,7 @@ public class LetterWheel : MonoBehaviour
             float shadowExp = Mathf.Max(wheelShadowExpand, 0f);
             float expandedSize = bgSize + shadowExp * 2f;
             wheelBackground.rectTransform.sizeDelta = new Vector2(expandedSize, expandedSize);
+            WheelBackgroundSize = expandedSize;
 
             if (wheelMaterial != null)
             {

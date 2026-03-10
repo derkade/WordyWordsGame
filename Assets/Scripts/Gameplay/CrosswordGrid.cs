@@ -275,6 +275,10 @@ public class CrosswordGrid : MonoBehaviour
             wordCellPositions[upperWord] = positions;
         }
 
+        // Scatter coins on random unrevealed cells (skip when restoring from save)
+        if (!skipCoins)
+            PlaceCellCoins(cellSize);
+
         if (cheatShowLetters)
         {
             foreach (var kvp in cells)
@@ -282,12 +286,10 @@ public class CrosswordGrid : MonoBehaviour
                 var cell = kvp.Value;
                 cell.letterText.text = cell.letter.ToString();
                 cell.letterText.color = cell.isRevealed ? letterColor : new Color(0f, 0f, 0f, 0.7f);
+                // Ensure letter renders on top of coin icon
+                cell.letterText.transform.SetAsLastSibling();
             }
         }
-
-        // Scatter coins on random unrevealed cells (skip when restoring from save)
-        if (!skipCoins)
-            PlaceCellCoins(cellSize);
     }
 
     private static Sprite coinSprite;
@@ -370,12 +372,15 @@ public class CrosswordGrid : MonoBehaviour
         tex.filterMode = FilterMode.Bilinear;
 
         float center = size * 0.5f;
+        float borderW = size * 0.05f;
         float outerR = size * 0.45f;
-        float innerR = outerR * 0.75f;
+        float coinR = outerR - borderW;
+        float innerR = coinR * 0.75f;
 
         Color gold = new Color(1f, 0.84f, 0.0f, 1f);
         Color darkGold = new Color(0.85f, 0.65f, 0.0f, 1f);
         Color highlight = new Color(1f, 0.95f, 0.6f, 1f);
+        Color outline = new Color(0.25f, 0.15f, 0.0f, 1f);
         Color clear = new Color(0, 0, 0, 0);
 
         for (int y = 0; y < size; y++)
@@ -395,9 +400,13 @@ public class CrosswordGrid : MonoBehaviour
                 // Anti-aliased outer edge
                 float outerAlpha = Mathf.Clamp01(outerR - dist + 0.5f);
 
-                // Rim vs face
                 Color col;
-                if (dist > innerR)
+                if (dist > coinR)
+                {
+                    // Dark outline border
+                    col = outline;
+                }
+                else if (dist > innerR)
                 {
                     // Rim: darker gold
                     col = darkGold;
@@ -644,6 +653,22 @@ public class CrosswordGrid : MonoBehaviour
                 return false;
         }
         return true;
+    }
+
+    public string GetLongestUnrevealedWord()
+    {
+        string longest = null;
+        int longestLen = 0;
+        foreach (var kvp in wordCellPositions)
+        {
+            if (revealedWords.Contains(kvp.Key)) continue;
+            if (kvp.Key.Length > longestLen)
+            {
+                longestLen = kvp.Key.Length;
+                longest = kvp.Key;
+            }
+        }
+        return longest;
     }
 
     public bool IsWordRevealed(string word)

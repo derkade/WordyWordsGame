@@ -107,6 +107,29 @@ public class GameManager : MonoBehaviour
     [SerializeField] private bool hintStreakGlowOnTop = true;
     [SerializeField] private bool hintStreakShowGlow = true;
 
+    [Header("Scatterbomb")]
+    [Tooltip("Button to trigger scatterbomb (reveals multiple cells)")]
+    [SerializeField] private Button scatterbombButton;
+    [Tooltip("Coin cost to use a scatterbomb")]
+    [SerializeField] private int scatterbombCost = 200;
+    [Tooltip("Number of cells revealed per scatterbomb")]
+    [SerializeField] private int scatterbombCount = 5;
+
+    [Header("Combo System")]
+    [Tooltip("Time window to chain words for combo")]
+    [SerializeField] private float comboTimeWindow = 8f;
+    [Tooltip("Combo level that triggers the surge auto-reveal")]
+    [SerializeField] private int maxComboLevel = 5;
+    [Tooltip("Color of the combo ring at each level (index 0 = x1)")]
+    [SerializeField] private Color[] comboColors = new Color[]
+    {
+        new Color(0.2f, 0.5f, 1f, 0.4f),   // x1: dim blue
+        new Color(0.2f, 0.6f, 1f, 0.7f),   // x2: blue
+        new Color(0.1f, 0.7f, 1f, 0.85f),  // x3: bright blue
+        new Color(0.3f, 0.5f, 1f, 0.95f),  // x4: intense blue
+        new Color(0.5f, 0.3f, 1f, 1f),     // x5: blue-purple (surge!)
+    };
+
     [Header("Persistence")]
     [Tooltip("Save/restore level and coins across sessions (enable for builds)")]
     [SerializeField] private bool persistProgress = false;
@@ -145,6 +168,13 @@ public class GameManager : MonoBehaviour
     private RuntimeLevelGenerator runtimeGenerator;
     private List<string> foundExtraWords = new List<string>();
 
+    // Combo system
+    private int comboCount;
+    private float comboTimer;
+    private Image comboRingBase;  // solid opaque ring (visible against white)
+    private Image comboRingGlow;  // additive glow ring on top
+    private TMP_Text comboCountText;
+
     private void Start()
     {
         if (clearSaveOnNextPlay)
@@ -172,6 +202,8 @@ public class GameManager : MonoBehaviour
 
         // Button listeners
         hintButton.onClick.AddListener(OnHintClicked);
+        if (scatterbombButton != null)
+            scatterbombButton.onClick.AddListener(OnScatterbombClicked);
         if (nextLevelButton != null)
             nextLevelButton.onClick.AddListener(OnNextLevelClicked);
 
@@ -189,6 +221,9 @@ public class GameManager : MonoBehaviour
         }
         if (wordBankPanel != null)
             wordBankPanel.SetActive(false);
+
+        // Configure icon buttons (Hint + Bomb)
+        ConfigureIconButtons();
 
         // Hide overlays
         if (levelCompletePanel != null)
@@ -248,6 +283,17 @@ public class GameManager : MonoBehaviour
             string word = swipeController.GetCurrentWord();
             currentWordText.text = word;
         }
+
+        // Tick combo timer
+        if (comboTimer > 0f)
+        {
+            comboTimer -= Time.deltaTime;
+            float fill = Mathf.Clamp01(comboTimer / comboTimeWindow);
+            if (comboRingBase != null) comboRingBase.fillAmount = fill;
+            if (comboRingGlow != null) comboRingGlow.fillAmount = fill;
+            if (comboTimer <= 0f)
+                ResetCombo();
+        }
     }
 
     public void LoadLevel(int index)
@@ -301,6 +347,9 @@ public class GameManager : MonoBehaviour
         // Build wheel
         letterWheel.BuildWheel(level.letters);
 
+        // Setup combo ring around wheel
+        SetupComboRing();
+
         // Set word sets for swipe controller
         swipeController.SetWordSets(level.GetGridWordSet(), level.GetExtraWordSet());
 
@@ -322,12 +371,9 @@ public class GameManager : MonoBehaviour
     [Header("Flying Tiles")]
     [Tooltip("Time for each tile to fly from wheel to grid cell")]
     [SerializeField] private float tileFlightDuration = 0.5f;
-    [Tooltip("Delay between each tile launch")]
-    [SerializeField] private float tileLaunchStagger = 0.08f;
-
     private void HandleGridWordFound(string word)
     {
-        // Mark word as found but don't reveal cells yet — flying tiles do that
+        IncrementCombo();
         crosswordGrid.MarkWordRevealed(word);
         SaveProgress();
         StartCoroutine(WordRevealSequence(word));
@@ -410,8 +456,9 @@ public class GameManager : MonoBehaviour
         if (correctWordParticles != null)
             correctWordParticles.PlaySequence(cellTransforms, 0.05f);
 
-        // Only award coins for newly revealed cells
-        int coinsEarned = coinsPerLetter * unrevealedCount;
+        // Only award coins for newly revealed cells (combo multiplier applies)
+        int comboMult = Mathf.Max(comboCount, 1);
+        int coinsEarned = coinsPerLetter * unrevealedCount * comboMult;
 
         if (gridStreaksEnabled && coinStreakManager != null && coinText != null && unrevealedCount > 0)
         {
@@ -518,9 +565,10 @@ public class GameManager : MonoBehaviour
 
     private void HandleExtraWordFound(string word)
     {
+        IncrementCombo();
         extraWordsFound++;
         foundExtraWords.Add(word);
-        AddCoins(coinsPerExtraWord);
+        AddCoins(coinsPerExtraWord * Mathf.Max(comboCount, 1));
         SaveProgress();
 
         if (bonusWordParticles != null && extraWordsCountText != null)
@@ -563,7 +611,8 @@ public class GameManager : MonoBehaviour
 
     private void HandleInvalidWord(string word)
     {
-        // Shake the current word text
+        ResetCombo();
+
         if (currentWordText != null)
         {
             RectTransform rt = currentWordText.GetComponent<RectTransform>();
@@ -652,6 +701,103 @@ public class GameManager : MonoBehaviour
         {
             StartCoroutine(ShowLevelComplete());
         }
+    }
+
+    private void OnScatterbombClicked()
+    {
+        if (coins < scatterbombCost)
+        {
+            if (coinText != null)
+                StartCoroutine(TweenHelper.ShakePosition(coinText.GetComponent<RectTransform>(), 5f, 0.3f));
+            return;
+        }
+
+        // Pick cells using the existing hint system (marks them revealed, queues for visual reveal)
+        var cellRTs = new List<RectTransform>();
+        var allCompletedWords = new List<string>();
+
+        for (int i = 0; i < scatterbombCount; i++)
+        {
+            var completedWords = crosswordGrid.HintRevealCell(out RectTransform cellRT);
+            if (completedWords == null) break;
+            cellRTs.Add(cellRT);
+            allCompletedWords.AddRange(completedWords);
+        }
+
+        if (cellRTs.Count == 0) return;
+
+        AddCoins(-scatterbombCost);
+        StartCoroutine(ScatterbombSequence(cellRTs, allCompletedWords));
+    }
+
+    private IEnumerator ScatterbombSequence(List<RectTransform> cellRTs, List<string> completedWords)
+    {
+        Vector3 scorePos = (coinText != null)
+            ? coinText.transform.TransformPoint(coinText.textBounds.center)
+            : Vector3.zero;
+        Vector3 gridCenter = crosswordGrid.transform.position;
+
+        // Phase 1: Streak from score to grid center (coins flying away)
+        if (coinStreakManager != null && coinText != null)
+        {
+            Color goldColor = new Color(1f, 0.84f, 0f, 1f);
+            coinStreakManager.PlaySingleStreak(scorePos, gridCenter, goldColor, true, true);
+            yield return new WaitForSeconds(coinStreakManager.TravelDuration);
+        }
+
+        // Phase 2: Explosion at grid center + screen shake
+        if (correctWordParticles != null)
+        {
+            var gridRT = crosswordGrid.GetComponent<RectTransform>();
+            correctWordParticles.PlayAt(gridRT);
+        }
+        StartCoroutine(TweenHelper.ShakePosition(crosswordGrid.GetComponent<RectTransform>(), 12f, 0.35f));
+
+        // Phase 3: Streaks radiate from center to each cell (slightly staggered)
+        float outStagger = 0.06f;
+        if (coinStreakManager != null)
+        {
+            for (int i = 0; i < cellRTs.Count; i++)
+            {
+                Color trailColor = new Color(1f, 0.7f, 0.2f, 1f);
+                StartCoroutine(DelayedStreak(gridCenter, cellRTs[i].position, trailColor, i * outStagger));
+            }
+        }
+
+        // Wait for last streak to arrive
+        float travelTime = (coinStreakManager != null) ? coinStreakManager.TravelDuration : 0.3f;
+        yield return new WaitForSeconds(travelTime + (cellRTs.Count - 1) * outStagger);
+
+        // Phase 4: Reveal each cell with staggered punch + particles
+        for (int i = 0; i < cellRTs.Count; i++)
+        {
+            crosswordGrid.RevealHintCell();
+
+            if (correctWordParticles != null)
+                correctWordParticles.PlayAt(cellRTs[i]);
+
+            if (i < cellRTs.Count - 1)
+                yield return new WaitForSeconds(0.08f);
+        }
+
+        // Handle any words completed by the scatterbomb
+        foreach (string word in completedWords)
+        {
+            swipeController.MarkWordAsFound(word);
+            AddCoins(coinsPerLetter * word.Length);
+        }
+
+        SaveProgress();
+
+        if (crosswordGrid.IsComplete())
+            StartCoroutine(ShowLevelComplete());
+    }
+
+    private IEnumerator DelayedStreak(Vector3 from, Vector3 to, Color color, float delay)
+    {
+        if (delay > 0f)
+            yield return new WaitForSeconds(delay);
+        coinStreakManager.PlaySingleStreak(from, to, color, true, true);
     }
 
     private void OnNextLevelClicked()
@@ -847,6 +993,7 @@ public class GameManager : MonoBehaviour
         }
         crosswordGrid.BuildGrid(level, skipCoins: true);
         letterWheel.BuildWheel(level.letters);
+        SetupComboRing();
         swipeController.SetWordSets(level.GetGridWordSet(), level.GetExtraWordSet());
         levelText.text = $"LEVEL {currentLevelIndex + 1}";
 
@@ -1077,6 +1224,401 @@ public class GameManager : MonoBehaviour
         }
 
         Destroy(go);
+    }
+
+    // ---- Combo system ----
+
+    private void SetupComboRing()
+    {
+        Transform wheelParent = letterWheel.transform;
+
+        // Solid base ring (visible against white wheel)
+        if (comboRingBase == null)
+        {
+            var baseGO = new GameObject("ComboRingBase", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            baseGO.transform.SetParent(wheelParent, false);
+
+            comboRingBase = baseGO.GetComponent<Image>();
+            comboRingBase.sprite = GenerateGlowRingSprite(256, 0.12f);
+            comboRingBase.type = Image.Type.Filled;
+            comboRingBase.fillMethod = Image.FillMethod.Radial360;
+            comboRingBase.fillOrigin = (int)Image.Origin360.Top;
+            comboRingBase.fillClockwise = true;
+            comboRingBase.fillAmount = 0f;
+            comboRingBase.raycastTarget = false;
+
+            baseGO.transform.SetSiblingIndex(2);
+        }
+
+        // Additive glow ring underneath the base
+        if (comboRingGlow == null)
+        {
+            var glowGO = new GameObject("ComboRingGlow", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            glowGO.transform.SetParent(wheelParent, false);
+
+            comboRingGlow = glowGO.GetComponent<Image>();
+            comboRingGlow.sprite = GenerateGlowRingSprite(256, 0.12f);
+            comboRingGlow.type = Image.Type.Filled;
+            comboRingGlow.fillMethod = Image.FillMethod.Radial360;
+            comboRingGlow.fillOrigin = (int)Image.Origin360.Top;
+            comboRingGlow.fillClockwise = true;
+            comboRingGlow.fillAmount = 0f;
+            comboRingGlow.raycastTarget = false;
+
+            var glowShader = Shader.Find("UI/Glow");
+            if (glowShader != null)
+            {
+                var glowMat = new Material(glowShader);
+                glowMat.SetFloat("_GlowIntensity", 3f);
+                comboRingGlow.material = glowMat;
+            }
+
+            glowGO.transform.SetSiblingIndex(1);
+        }
+
+        if (comboCountText == null)
+        {
+            var textGO = new GameObject("ComboText", typeof(RectTransform), typeof(CanvasRenderer));
+            textGO.transform.SetParent(wheelParent, false);
+
+            comboCountText = textGO.AddComponent<TextMeshProUGUI>();
+            comboCountText.fontSize = 40f;
+            comboCountText.fontStyle = FontStyles.Bold;
+            comboCountText.alignment = TextAlignmentOptions.Center;
+            comboCountText.color = Color.white;
+            comboCountText.outlineWidth = 0.3f;
+            comboCountText.outlineColor = new Color32(0, 0, 0, 200);
+            comboCountText.raycastTarget = false;
+            comboCountText.text = "";
+        }
+
+        // Size both rings well beyond the wheel
+        float ringSize = letterWheel.WheelBackgroundSize + 60f;
+        comboRingBase.rectTransform.sizeDelta = new Vector2(ringSize, ringSize);
+        comboRingBase.rectTransform.anchoredPosition = Vector2.zero;
+        comboRingGlow.rectTransform.sizeDelta = new Vector2(ringSize, ringSize);
+        comboRingGlow.rectTransform.anchoredPosition = Vector2.zero;
+
+        // Position text above the wheel
+        float textY = letterWheel.WheelBackgroundSize * 0.5f + 25f;
+        comboCountText.rectTransform.sizeDelta = new Vector2(120f, 50f);
+        comboCountText.rectTransform.anchoredPosition = new Vector2(0f, textY);
+
+        ResetCombo();
+    }
+
+    private void IncrementCombo()
+    {
+        comboCount++;
+        comboTimer = comboTimeWindow;
+
+        {
+            int colorIdx = Mathf.Clamp(comboCount - 1, 0, comboColors.Length - 1);
+            Color ringColor = comboColors[colorIdx];
+            if (comboRingBase != null)
+            {
+                comboRingBase.fillAmount = 1f;
+                // Base is always fully opaque
+                comboRingBase.color = new Color(ringColor.r, ringColor.g, ringColor.b, 1f);
+            }
+            if (comboRingGlow != null)
+            {
+                comboRingGlow.fillAmount = 1f;
+                comboRingGlow.color = ringColor;
+            }
+        }
+
+        if (comboCount >= 2 && comboCountText != null)
+        {
+            comboCountText.text = $"x{comboCount}";
+            int colorIdx = Mathf.Clamp(comboCount - 1, 0, comboColors.Length - 1);
+            Color txtColor = comboColors[colorIdx];
+            txtColor.a = 1f;
+            comboCountText.color = txtColor;
+            comboCountText.transform.localScale = Vector3.one;
+            StartCoroutine(TweenHelper.PunchScale(comboCountText.transform, Vector3.one * 0.4f, 0.3f));
+        }
+
+        // Pulse the wheel on each combo increment
+        letterWheel.transform.localScale = Vector3.one;
+        float pulseIntensity = 0.03f + comboCount * 0.02f;
+        StartCoroutine(TweenHelper.PunchScale(letterWheel.transform, Vector3.one * pulseIntensity, 0.25f));
+
+        if (comboCount >= maxComboLevel)
+            StartCoroutine(ComboSurge());
+    }
+
+    private void ResetCombo()
+    {
+        comboCount = 0;
+        comboTimer = 0f;
+        if (comboRingBase != null) comboRingBase.fillAmount = 0f;
+        if (comboRingGlow != null) comboRingGlow.fillAmount = 0f;
+        if (comboCountText != null)
+            comboCountText.text = "";
+    }
+
+    private IEnumerator ComboSurge()
+    {
+        // Brief dramatic pause
+        yield return new WaitForSeconds(1.2f);
+
+        string surgeWord = crosswordGrid.GetLongestUnrevealedWord();
+        if (surgeWord == null)
+        {
+            ResetCombo();
+            yield break;
+        }
+
+        // Big VFX: wheel scale pulse + grid shake
+        letterWheel.transform.localScale = Vector3.one;
+        StartCoroutine(TweenHelper.PunchScale(letterWheel.transform, Vector3.one * 0.2f, 0.5f));
+        StartCoroutine(TweenHelper.ShakePosition(crosswordGrid.GetComponent<RectTransform>(), 15f, 0.4f));
+
+        // Flash "SURGE!" text
+        if (comboCountText != null)
+        {
+            comboCountText.text = "SURGE!";
+            comboCountText.fontSize = 48f;
+            comboCountText.color = new Color(0.5f, 0.3f, 1f, 1f);
+            StartCoroutine(TweenHelper.PunchScale(comboCountText.transform, Vector3.one * 0.5f, 0.4f));
+        }
+
+        yield return new WaitForSeconds(0.6f);
+
+        // Auto-reveal the longest unfound word
+        swipeController.MarkWordAsFound(surgeWord);
+        crosswordGrid.MarkWordRevealed(surgeWord);
+        StartCoroutine(WordRevealSequence(surgeWord));
+
+        // Reset combo text after surge VFX starts
+        yield return new WaitForSeconds(0.5f);
+        if (comboCountText != null)
+            comboCountText.fontSize = 40f;
+        ResetCombo();
+    }
+
+    private static Sprite GenerateGlowRingSprite(int size, float thicknessFraction)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+
+        float center = size * 0.5f;
+        float outerR = size * 0.47f;
+        float ringWidth = thicknessFraction * size;
+        float ringCenter = outerR - ringWidth * 0.5f;
+        float halfW = ringWidth * 0.5f;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = x - center;
+                float dy = y - center;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+
+                // Soft gaussian-like falloff from ring centerline
+                float d = Mathf.Abs(dist - ringCenter) / halfW;
+                float alpha = Mathf.Clamp01(1f - d);
+                alpha *= alpha; // smooth quadratic falloff for soft glow
+
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+            }
+        }
+
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
+    }
+
+    // ---- Icon button setup ----
+
+    private void ConfigureIconButtons()
+    {
+        float iconBtnSize = 106f;
+
+        // Hint button → square icon
+        if (hintButton != null)
+        {
+            var rt = hintButton.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(iconBtnSize, iconBtnSize);
+
+            var txt = hintButton.GetComponentInChildren<TMP_Text>();
+            if (txt != null) txt.enabled = false;
+
+            AddIconChild(hintButton.transform, GenerateLightbulbSprite(64), iconBtnSize * 0.55f,
+                new Color(1f, 1f, 1f, 0.9f));
+        }
+
+        // Bomb button → square icon, placed between Hint and Word Bank
+        if (scatterbombButton != null)
+        {
+            scatterbombButton.transform.SetSiblingIndex(1);
+
+            var rt = scatterbombButton.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(iconBtnSize, iconBtnSize);
+
+            var txt = scatterbombButton.GetComponentInChildren<TMP_Text>();
+            if (txt != null) txt.enabled = false;
+
+            AddIconChild(scatterbombButton.transform, GenerateStarburstSprite(64), iconBtnSize * 0.55f,
+                new Color(1f, 1f, 1f, 0.9f));
+        }
+    }
+
+    private static void AddIconChild(Transform parent, Sprite sprite, float size, Color color)
+    {
+        var go = new GameObject("Icon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        go.transform.SetParent(parent, false);
+
+        var rt = go.GetComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(size, size);
+        rt.anchoredPosition = Vector2.zero;
+
+        var img = go.GetComponent<Image>();
+        img.sprite = sprite;
+        img.color = color;
+        img.raycastTarget = false;
+    }
+
+    private static Sprite GenerateLightbulbSprite(int size)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+
+        var clear = new Color(0, 0, 0, 0);
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+                tex.SetPixel(x, y, clear);
+
+        float cx = size * 0.5f;
+        float bulbCY = size * 0.6f;
+        float bulbR = size * 0.26f;
+        float lineW = size * 0.07f;
+
+        // Filled bulb circle
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = x - cx;
+                float dy = y - bulbCY;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                float alpha = Mathf.Clamp01(bulbR - dist + 0.5f);
+                if (alpha > 0f)
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+            }
+        }
+
+        // Neck connecting bulb to base
+        float neckTop = bulbCY - bulbR + 2f;
+        float neckBot = size * 0.25f;
+        float neckHW = size * 0.1f;
+        IconDrawLine(tex, size, cx - neckHW, neckTop, cx - neckHW, neckBot, lineW * 0.8f);
+        IconDrawLine(tex, size, cx + neckHW, neckTop, cx + neckHW, neckBot, lineW * 0.8f);
+
+        // Horizontal bars on the base (screw threads)
+        for (int b = 0; b < 3; b++)
+        {
+            float by = neckBot + (neckTop - neckBot) * (b * 0.35f + 0.1f);
+            IconDrawLine(tex, size, cx - neckHW, by, cx + neckHW, by, lineW * 0.7f);
+        }
+
+        // Light rays radiating upward from bulb
+        float rayStart = bulbR + size * 0.03f;
+        float rayEnd = bulbR + size * 0.13f;
+        float[] angles = { 30f, 70f, 110f, 150f };
+        foreach (float ang in angles)
+        {
+            float rad = ang * Mathf.Deg2Rad;
+            IconDrawLine(tex, size,
+                cx + Mathf.Cos(rad) * rayStart, bulbCY + Mathf.Sin(rad) * rayStart,
+                cx + Mathf.Cos(rad) * rayEnd, bulbCY + Mathf.Sin(rad) * rayEnd,
+                lineW);
+        }
+
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
+    }
+
+    private static Sprite GenerateStarburstSprite(int size)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+
+        var clear = new Color(0, 0, 0, 0);
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+                tex.SetPixel(x, y, clear);
+
+        float cx = size * 0.5f;
+        float cy = size * 0.5f;
+        float lineW = size * 0.09f;
+
+        // 8 rays alternating long/short for starburst explosion look
+        int rays = 8;
+        for (int i = 0; i < rays; i++)
+        {
+            float angle = (i * 360f / rays + 22.5f) * Mathf.Deg2Rad;
+            float r = (i % 2 == 0) ? size * 0.42f : size * 0.26f;
+            IconDrawLine(tex, size, cx, cy,
+                cx + Mathf.Cos(angle) * r,
+                cy + Mathf.Sin(angle) * r,
+                lineW);
+        }
+
+        // Small filled dot at center
+        float dotR = size * 0.1f;
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = x - cx;
+                float dy = y - cy;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                if (dist < dotR + 0.5f)
+                {
+                    float alpha = Mathf.Clamp01(dotR - dist + 0.5f);
+                    Color existing = tex.GetPixel(x, y);
+                    tex.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Max(existing.a, alpha)));
+                }
+            }
+        }
+
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
+    }
+
+    private static void IconDrawLine(Texture2D tex, int size, float x0, float y0, float x1, float y1, float width)
+    {
+        float halfW = width * 0.5f;
+        int minX = Mathf.Max(0, (int)(Mathf.Min(x0, x1) - halfW - 1));
+        int maxX = Mathf.Min(size - 1, (int)(Mathf.Max(x0, x1) + halfW + 1));
+        int minY = Mathf.Max(0, (int)(Mathf.Min(y0, y1) - halfW - 1));
+        int maxY = Mathf.Min(size - 1, (int)(Mathf.Max(y0, y1) + halfW + 1));
+
+        float dx = x1 - x0, dy = y1 - y0;
+        float len = Mathf.Sqrt(dx * dx + dy * dy);
+        if (len < 0.001f) return;
+
+        for (int py = minY; py <= maxY; py++)
+        {
+            for (int px = minX; px <= maxX; px++)
+            {
+                float t = Mathf.Clamp01(((px - x0) * dx + (py - y0) * dy) / (len * len));
+                float cx2 = x0 + t * dx, cy2 = y0 + t * dy;
+                float dist = Mathf.Sqrt((px - cx2) * (px - cx2) + (py - cy2) * (py - cy2));
+                float alpha = Mathf.Clamp01(halfW - dist + 0.5f);
+                if (alpha > 0f)
+                {
+                    Color existing = tex.GetPixel(px, py);
+                    float blended = Mathf.Max(existing.a, alpha);
+                    tex.SetPixel(px, py, new Color(1f, 1f, 1f, blended));
+                }
+            }
+        }
     }
 
 }

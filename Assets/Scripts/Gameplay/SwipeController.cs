@@ -227,6 +227,8 @@ public class SwipeController : MonoBehaviour, IPointerUpHandler, IPointerDownHan
         string upper = word.ToUpper();
         if (gridWords.Contains(upper))
             foundGridWords.Add(upper);
+        if (extraWords.Contains(upper))
+            foundExtraWords.Add(upper);
     }
 
     public bool AllGridWordsFound => foundGridWords.Count >= gridWords.Count;
