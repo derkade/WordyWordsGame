@@ -87,6 +87,8 @@ public class GameManager : MonoBehaviour
     [SerializeField] private int coinsPerLetter = 5;
     [Tooltip("Coins awarded for finding a bonus word")]
     [SerializeField] private int coinsPerExtraWord = 10;
+    [Tooltip("Coins awarded for collecting a cell coin")]
+    [SerializeField] private int coinsPerCellCoin = 100;
     [Tooltip("Streak color for bonus word trails")]
     [SerializeField] private Color bonusStreakColor = new Color(0.3f, 0.6f, 1f, 1f);
 
@@ -105,6 +107,36 @@ public class GameManager : MonoBehaviour
     [SerializeField] private bool hintStreakGlowOnTop = true;
     [SerializeField] private bool hintStreakShowGlow = true;
 
+    [Header("Persistence")]
+    [Tooltip("Save/restore level and coins across sessions (enable for builds)")]
+    [SerializeField] private bool persistProgress = false;
+    [Tooltip("Clear saved progress (resets on next play)")]
+    [SerializeField] private bool clearSaveOnNextPlay = false;
+
+    [System.Serializable]
+    private class IntPair
+    {
+        public int x, y;
+        public IntPair(int x, int y) { this.x = x; this.y = y; }
+    }
+
+    [System.Serializable]
+    private class SaveData
+    {
+        public int level;
+        public int coins;
+        public string letters;
+        public int gridWidth;
+        public int gridHeight;
+        public List<WordPlacement> placements = new List<WordPlacement>();
+        public List<string> extraWords = new List<string>();
+        public List<string> revealedWords = new List<string>();
+        public List<string> foundExtraWords = new List<string>();
+        public int extraWordsFound;
+        public List<IntPair> coinPositions = new List<IntPair>();
+        public int themeIndex = -1;
+    }
+
     private int currentLevelIndex;
     private int coins;
     private int displayedCoins;
@@ -115,9 +147,16 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
+        if (clearSaveOnNextPlay)
+        {
+            PlayerPrefs.DeleteKey("WW_Save");
+            PlayerPrefs.Save();
+            clearSaveOnNextPlay = false;
+        }
+
         coins = 100;
-        displayedCoins = 100;
         currentLevelIndex = startLevelIndex;
+        displayedCoins = coins;
 
         if (useRandomLevels)
         {
@@ -144,16 +183,29 @@ public class GameManager : MonoBehaviour
         if (wordBankClickHandler != null)
             wordBankClickHandler.OnWordClicked += OnWordBankWordClicked;
         if (crosswordGrid != null)
+        {
             crosswordGrid.OnGridWordClicked += OnGridWordClicked;
+            crosswordGrid.OnCoinCollected += HandleCellCoinCollected;
+        }
         if (wordBankPanel != null)
             wordBankPanel.SetActive(false);
 
-        // Hide level complete panel
+        // Hide overlays
         if (levelCompletePanel != null)
             levelCompletePanel.SetActive(false);
+        if (definitionPanel != null)
+            definitionPanel.gameObject.SetActive(false);
 
-        UpdateCoinDisplay();
-        LoadLevel(currentLevelIndex);
+        // Try to restore saved progress
+        if (persistProgress && TryLoadSave())
+        {
+            UpdateCoinDisplay();
+        }
+        else
+        {
+            UpdateCoinDisplay();
+            LoadLevel(currentLevelIndex);
+        }
 
         // Align wheel center to button bar center after layout settles
         StartCoroutine(AlignWheelToButtons());
@@ -182,7 +234,10 @@ public class GameManager : MonoBehaviour
         if (wordBankClickHandler != null)
             wordBankClickHandler.OnWordClicked -= OnWordBankWordClicked;
         if (crosswordGrid != null)
+        {
             crosswordGrid.OnGridWordClicked -= OnGridWordClicked;
+            crosswordGrid.OnCoinCollected -= HandleCellCoinCollected;
+        }
     }
 
     private void Update()
@@ -221,6 +276,7 @@ public class GameManager : MonoBehaviour
             level = levels[currentLevelIndex];
         }
 
+        currentLoadedLevel = level;
         extraWordsFound = 0;
         foundExtraWords.Clear();
 
@@ -259,6 +315,8 @@ public class GameManager : MonoBehaviour
         // Hide level complete panel
         if (levelCompletePanel != null)
             levelCompletePanel.SetActive(false);
+
+        SaveProgress();
     }
 
     [Header("Flying Tiles")]
@@ -271,8 +329,12 @@ public class GameManager : MonoBehaviour
     {
         // Mark word as found but don't reveal cells yet — flying tiles do that
         crosswordGrid.MarkWordRevealed(word);
+        SaveProgress();
         StartCoroutine(WordRevealSequence(word));
     }
+
+    [Tooltip("Delay between each cell reveal/punch in the stagger sequence")]
+    [SerializeField] private float cellRevealStagger = 0.06f;
 
     private IEnumerator WordRevealSequence(string word)
     {
@@ -293,97 +355,94 @@ public class GameManager : MonoBehaviour
             ? coinText.transform.TransformPoint(coinText.textBounds.center)
             : Vector3.zero;
 
-        // Only fly tiles to unrevealed cells; last tile triggers streaks on landing
-        int launchIndex = 0;
-        int tilesLaunched = 0;
-        bool streaksFired = false;
-
-        // Count unrevealed cells first so we know which landing is the last
-        int unrevearedCount = 0;
+        // Count unrevealed cells
+        int unrevealedCount = 0;
         for (int i = 0; i < cellTransforms.Count; i++)
         {
             if (i >= alreadyRevealed.Count || !alreadyRevealed[i])
-                unrevearedCount++;
+                unrevealedCount++;
         }
 
-        int landedCount = 0;
+        // --- Phase 1: Launch flying tiles (purely visual, no reveal logic) ---
+        var flyingTiles = new List<GameObject>();
+        if (unrevealedCount > 0)
+        {
+            for (int i = 0; i < cellTransforms.Count; i++)
+            {
+                if (i < alreadyRevealed.Count && alreadyRevealed[i])
+                    continue; // no tile needed for already-revealed cells
+
+                var tile = CreateFlyingTile(canvasTransform, cellSize);
+                tile.GetComponent<RectTransform>().position = wheelCenter;
+                flyingTiles.Add(tile);
+
+                // Fire-and-forget: all tiles launch simultaneously, land together
+                int cellIdx = i;
+                StartCoroutine(FlyTile(tile, wheelCenter, cellTransforms[cellIdx].position,
+                    0f, tileFlightDuration, () =>
+                    {
+                        if (tile != null) Destroy(tile);
+                    }));
+            }
+
+            // Wait for the first tile to visually arrive before starting reveals.
+            // EaseOutBack reaches 0.99 at ~37% of duration.
+            yield return new WaitForSeconds(tileFlightDuration * 0.37f);
+        }
+
+        // --- Phase 2: Unified stagger reveal for ALL cells ---
+        // Every cell gets the same stagger treatment regardless of revealed state.
         for (int i = 0; i < cellTransforms.Count; i++)
         {
-            int idx = i;
-            float delay = launchIndex * tileLaunchStagger;
-            launchIndex++;
+            // Reveal unrevealed cells
+            if (i >= alreadyRevealed.Count || !alreadyRevealed[i])
+                crosswordGrid.RevealSingleCell(word, i);
 
-            // Already-revealed cells punch in sequence alongside the flying tiles
-            if (idx < alreadyRevealed.Count && alreadyRevealed[idx])
-            {
-                StartCoroutine(DelayedCellPunch(cellTransforms[idx], delay + tileFlightDuration * 0.37f));
-                continue;
-            }
+            // Punch every cell uniformly
+            StartCoroutine(TweenHelper.PunchScale(cellTransforms[i], Vector3.one * 0.2f, 0.3f));
 
-            tilesLaunched++;
-
-            var tile = CreateFlyingTile(canvasTransform, cellSize);
-            tile.GetComponent<RectTransform>().position = wheelCenter;
-            StartCoroutine(FlyTile(tile, wheelCenter, cellTransforms[idx].position,
-                delay, tileFlightDuration, () =>
-            {
-                crosswordGrid.RevealSingleCell(word, idx);
-                if (tile != null) Destroy(tile);
-
-                landedCount++;
-                // Last tile landed — fire streaks from ALL cells immediately
-                if (landedCount >= unrevearedCount && !streaksFired)
-                {
-                    streaksFired = true;
-
-                    if (correctWordParticles != null)
-                        correctWordParticles.PlaySequence(cellTransforms, 0.05f);
-
-                    if (gridStreaksEnabled && coinStreakManager != null && coinText != null)
-                    {
-                        coinStreakManager.PlayStreaks(cellTransforms, textCenter, gridStreaksGlowOnTop, gridStreaksShowGlow);
-                        float travelTime = coinStreakManager.TravelDuration;
-                        float stagger = coinStreakManager.StaggerDelay;
-                        for (int j = 0; j < cellTransforms.Count; j++)
-                            StartCoroutine(CoinArrivalBurst(travelTime + j * stagger));
-                    }
-                }
-            }));
+            // Stagger between cells
+            if (i < cellTransforms.Count - 1)
+                yield return new WaitForSeconds(cellRevealStagger);
         }
 
-        // If all cells were already revealed, fire streaks immediately
-        if (tilesLaunched == 0)
+        // --- Phase 3: Particles and streaks after all cells revealed ---
+        if (correctWordParticles != null)
+            correctWordParticles.PlaySequence(cellTransforms, 0.05f);
+
+        // Only award coins for newly revealed cells
+        int coinsEarned = coinsPerLetter * unrevealedCount;
+
+        if (gridStreaksEnabled && coinStreakManager != null && coinText != null && unrevealedCount > 0)
         {
-            crosswordGrid.PunchWordCells(word, 0.05f);
-
-            if (correctWordParticles != null)
-                correctWordParticles.PlaySequence(cellTransforms, 0.05f);
-
-            if (gridStreaksEnabled && coinStreakManager != null && coinText != null)
+            // Only streak from newly revealed cells
+            var newCellTransforms = new List<RectTransform>();
+            for (int i = 0; i < cellTransforms.Count; i++)
             {
-                coinStreakManager.PlayStreaks(cellTransforms, textCenter, gridStreaksGlowOnTop, gridStreaksShowGlow);
-                float travelTime = coinStreakManager.TravelDuration;
-                float stagger = coinStreakManager.StaggerDelay;
-                for (int i = 0; i < cellTransforms.Count; i++)
-                    StartCoroutine(CoinArrivalBurst(travelTime + i * stagger));
+                if (i >= alreadyRevealed.Count || !alreadyRevealed[i])
+                    newCellTransforms.Add(cellTransforms[i]);
             }
-            else
-            {
-                AddCoins(coinsPerLetter * word.Length);
-            }
+            coinStreakManager.PlayStreaks(newCellTransforms, textCenter, gridStreaksGlowOnTop, gridStreaksShowGlow);
+            float travelTime = coinStreakManager.TravelDuration;
+            float stagger = coinStreakManager.StaggerDelay;
+            for (int j = 0; j < newCellTransforms.Count; j++)
+                StartCoroutine(CoinArrivalBurst(travelTime + j * stagger));
+        }
+        else if (coinsEarned > 0)
+        {
+            AddCoins(coinsEarned);
         }
 
-        // Wait for everything to finish before checking level complete
-        float totalTime = (tilesLaunched > 0)
-            ? (launchIndex - 1) * tileLaunchStagger + tileFlightDuration
-            : 0f;
-        if (coinStreakManager != null)
-            totalTime += coinStreakManager.TravelDuration + (cellTransforms.Count - 1) * coinStreakManager.StaggerDelay + 0.15f;
-        if (totalTime > 0f)
-            yield return new WaitForSeconds(totalTime);
+        // Wait for streaks to finish before checking level complete
+        if (coinStreakManager != null && unrevealedCount > 0)
+        {
+            float streakWait = coinStreakManager.TravelDuration
+                + (unrevealedCount - 1) * coinStreakManager.StaggerDelay + 0.15f;
+            yield return new WaitForSeconds(streakWait);
+        }
 
         if (coinStreakManager == null || coinText == null)
-            AddCoins(coinsPerLetter * word.Length);
+            AddCoins(coinsEarned);
 
         if (crosswordGrid.IsComplete())
             StartCoroutine(ShowLevelComplete());
@@ -411,13 +470,6 @@ public class GameManager : MonoBehaviour
 
         go.SetActive(false);
         return go;
-    }
-
-    private IEnumerator DelayedCellPunch(Transform target, float delay)
-    {
-        if (delay > 0f)
-            yield return new WaitForSeconds(delay);
-        yield return TweenHelper.PunchScale(target, Vector3.one * 0.2f, 0.3f);
     }
 
     private IEnumerator FlyTile(GameObject tile, Vector3 fromWorld, Vector3 toWorld, float delay, float duration, System.Action onLand = null)
@@ -469,6 +521,7 @@ public class GameManager : MonoBehaviour
         extraWordsFound++;
         foundExtraWords.Add(word);
         AddCoins(coinsPerExtraWord);
+        SaveProgress();
 
         if (bonusWordParticles != null && extraWordsCountText != null)
         {
@@ -491,7 +544,8 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator ShowExtraWordFlash()
     {
-        extraWordsCountText.text = $"+{extraWordsFound}";
+        // Show coin value earned at the counter position
+        extraWordsCountText.text = $"+{coinsPerExtraWord}";
         extraWordsCountText.alpha = 1f;
         yield return TweenHelper.PunchScale(extraWordsCountText.transform, Vector3.one * 0.3f, 0.3f);
         yield return new WaitForSeconds(0.8f);
@@ -604,6 +658,8 @@ public class GameManager : MonoBehaviour
     {
         if (levelCompleteParticles != null)
             levelCompleteParticles.Stop();
+        if (definitionPanel != null)
+            definitionPanel.gameObject.SetActive(false);
 
         if (useRandomLevels)
         {
@@ -718,6 +774,129 @@ public class GameManager : MonoBehaviour
         coins += amount;
         if (coins < 0) coins = 0;
         UpdateCoinDisplay();
+        SaveProgress();
+    }
+
+    private LevelData currentLoadedLevel;
+
+    private void SaveProgress()
+    {
+        if (!persistProgress) return;
+        if (currentLoadedLevel == null) return;
+
+        var gridCoinPos = crosswordGrid.GetCoinPositions();
+        var coinPairs = new List<IntPair>();
+        foreach (var p in gridCoinPos)
+            coinPairs.Add(new IntPair(p.x, p.y));
+
+        var save = new SaveData
+        {
+            level = currentLevelIndex,
+            coins = coins,
+            letters = currentLoadedLevel.letters,
+            gridWidth = currentLoadedLevel.gridWidth,
+            gridHeight = currentLoadedLevel.gridHeight,
+            placements = new List<WordPlacement>(currentLoadedLevel.wordPlacements),
+            extraWords = new List<string>(currentLoadedLevel.extraWords),
+            revealedWords = crosswordGrid.GetRevealedWords(),
+            foundExtraWords = new List<string>(foundExtraWords),
+            extraWordsFound = extraWordsFound,
+            coinPositions = coinPairs,
+            themeIndex = parallaxBackground != null ? parallaxBackground.ActiveThemeIndex : -1
+        };
+
+        PlayerPrefs.SetString("WW_Save", JsonUtility.ToJson(save));
+        PlayerPrefs.Save();
+    }
+
+    private bool TryLoadSave()
+    {
+        string json = PlayerPrefs.GetString("WW_Save", "");
+        if (string.IsNullOrEmpty(json)) return false;
+
+        SaveData save;
+        try { save = JsonUtility.FromJson<SaveData>(json); }
+        catch { return false; }
+
+        if (save == null || string.IsNullOrEmpty(save.letters)) return false;
+
+        // Restore state
+        currentLevelIndex = save.level;
+        coins = save.coins;
+        displayedCoins = coins;
+        extraWordsFound = save.extraWordsFound;
+        foundExtraWords = save.foundExtraWords ?? new List<string>();
+
+        // Rebuild LevelData from save
+        var level = ScriptableObject.CreateInstance<LevelData>();
+        level.letters = save.letters;
+        level.gridWidth = save.gridWidth;
+        level.gridHeight = save.gridHeight;
+        level.wordPlacements = save.placements;
+        level.extraWords = save.extraWords;
+        currentLoadedLevel = level;
+
+        // Restore theme
+        if (parallaxBackground != null)
+        {
+            if (save.themeIndex >= 0)
+                parallaxBackground.ApplyTheme(save.themeIndex);
+            else
+                parallaxBackground.ApplyRandomTheme();
+            crosswordGrid.SetRevealedCellColor(parallaxBackground.ActiveRevealedCellColor);
+        }
+        crosswordGrid.BuildGrid(level, skipCoins: true);
+        letterWheel.BuildWheel(level.letters);
+        swipeController.SetWordSets(level.GetGridWordSet(), level.GetExtraWordSet());
+        levelText.text = $"LEVEL {currentLevelIndex + 1}";
+
+        // Replay revealed words silently
+        if (save.revealedWords != null)
+        {
+            foreach (string word in save.revealedWords)
+            {
+                crosswordGrid.RevealWord(word);
+                swipeController.MarkWordAsFound(word);
+            }
+        }
+
+        // Mark found extra words so they can't be re-submitted
+        if (foundExtraWords != null)
+        {
+            foreach (string word in foundExtraWords)
+                swipeController.MarkWordAsFound(word);
+        }
+
+        // Restore coin positions (after reveals, so collected coins on revealed cells are skipped)
+        if (save.coinPositions != null && save.coinPositions.Count > 0)
+        {
+            var positions = new List<Vector2Int>();
+            foreach (var p in save.coinPositions)
+                positions.Add(new Vector2Int(p.x, p.y));
+            crosswordGrid.PlaceCellCoinsAt(positions, crosswordGrid.GetCellSize());
+        }
+
+        // If puzzle was already complete, load a fresh next level instead
+        if (crosswordGrid.IsComplete())
+        {
+            currentLevelIndex++;
+            LoadLevel(currentLevelIndex);
+        }
+
+        if (extraWordsCountText != null)
+        {
+            extraWordsCountText.text = "";
+            extraWordsCountText.alpha = 0f;
+        }
+
+        return true;
+    }
+
+    private void ClearSave()
+    {
+        if (!persistProgress) return;
+        PlayerPrefs.DeleteKey("WW_Save");
+        PlayerPrefs.Save();
     }
 
     private void UpdateCoinDisplay()
@@ -771,12 +950,55 @@ public class GameManager : MonoBehaviour
         if (bonusWordParticles != null && wordBankButton != null)
             bonusWordParticles.PlayAt(wordBankButton.GetComponent<RectTransform>());
 
-        // Bounce the button
+        // Bounce the button and pop floating word count
         if (wordBankButton != null)
         {
             wordBankButton.transform.localScale = Vector3.one;
             StartCoroutine(TweenHelper.PunchScale(wordBankButton.transform, Vector3.one * 0.2f, 0.3f));
+            StartCoroutine(FloatingCountPop(wordBankButton.GetComponent<RectTransform>()));
         }
+    }
+
+    private IEnumerator FloatingCountPop(RectTransform anchor)
+    {
+        // Parent to canvas root to avoid layout group interference
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas == null) canvas = FindAnyObjectByType<Canvas>();
+
+        var go = new GameObject("FloatingCount", typeof(RectTransform), typeof(CanvasRenderer));
+        go.transform.SetParent(canvas.transform, false);
+
+        var tmp = go.AddComponent<TextMeshProUGUI>();
+        tmp.text = $"+{extraWordsFound}";
+        tmp.fontSize = 48f;
+        tmp.fontStyle = FontStyles.Bold;
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.color = new Color(0.5f, 0.8f, 1f, 1f);
+        tmp.outlineWidth = 0.25f;
+        tmp.outlineColor = new Color32(0, 0, 0, 180);
+        tmp.raycastTarget = false;
+
+        var rt = go.GetComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(120f, 60f);
+
+        // Position in world space at the button, then animate upward
+        Vector3 startWorld = anchor.position;
+        float driftDistance = 120f * canvas.transform.lossyScale.y;
+
+        float duration = 1.2f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            go.transform.position = startWorld + Vector3.up * driftDistance * TweenHelper.EaseOutQuad(t);
+            // Hold full opacity for the first 40%, then fade out
+            tmp.alpha = t < 0.4f ? 1f : 1f - ((t - 0.4f) / 0.6f);
+            yield return null;
+        }
+
+        Destroy(go);
     }
 
     private IEnumerator CoinArrivalBurst(float delay)
@@ -799,6 +1021,62 @@ public class GameManager : MonoBehaviour
             coinText.transform.localScale = Vector3.one;
             StartCoroutine(TweenHelper.PunchScale(coinText.transform, Vector3.one * 0.15f, 0.2f));
         }
+    }
+
+    private void HandleCellCoinCollected(RectTransform cellRT)
+    {
+        AddCoins(coinsPerCellCoin);
+
+        // Streak from cell to score
+        if (coinStreakManager != null && coinText != null)
+        {
+            Vector3 fromPos = cellRT.position;
+            Vector3 toPos = coinText.transform.TransformPoint(coinText.textBounds.center);
+            Color goldColor = new Color(1f, 0.84f, 0f, 1f);
+            coinStreakManager.PlaySingleStreak(fromPos, toPos, goldColor, true, true);
+        }
+
+        // Floating +100 pop from the cell
+        StartCoroutine(FloatingCoinPop(cellRT));
+    }
+
+    private IEnumerator FloatingCoinPop(RectTransform anchor)
+    {
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas == null) canvas = FindAnyObjectByType<Canvas>();
+
+        var go = new GameObject("FloatingCoinPop", typeof(RectTransform), typeof(CanvasRenderer));
+        go.transform.SetParent(canvas.transform, false);
+
+        var tmp = go.AddComponent<TextMeshProUGUI>();
+        tmp.text = $"+{coinsPerCellCoin}";
+        tmp.fontSize = 48f;
+        tmp.fontStyle = FontStyles.Bold;
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.color = new Color(1f, 0.84f, 0f, 1f);
+        tmp.outlineWidth = 0.25f;
+        tmp.outlineColor = new Color32(0, 0, 0, 180);
+        tmp.raycastTarget = false;
+
+        var rt = go.GetComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(150f, 60f);
+
+        Vector3 startWorld = anchor.position;
+        float driftDistance = 120f * canvas.transform.lossyScale.y;
+
+        float duration = 1.2f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / duration);
+            go.transform.position = startWorld + Vector3.up * driftDistance * TweenHelper.EaseOutQuad(t);
+            tmp.alpha = t < 0.4f ? 1f : 1f - ((t - 0.4f) / 0.6f);
+            yield return null;
+        }
+
+        Destroy(go);
     }
 
 }

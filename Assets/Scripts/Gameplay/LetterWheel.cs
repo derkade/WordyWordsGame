@@ -301,9 +301,9 @@ public class LetterWheel : MonoBehaviour
             for (int x = 0; x < size; x++)
                 tex.SetPixel(x, y, clear);
 
-        float lineWidth = size * 0.06f;
+        float lineWidth = size * 0.1f;
         float margin = size * 0.2f;
-        float arrowSize = size * 0.12f;
+        float arrowSize = size * 0.15f;
 
         // Draw two crossing diagonal lines
         DrawLine(tex, size, margin, margin, size - margin, size - margin, lineWidth);

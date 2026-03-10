@@ -53,6 +53,7 @@ public class ParallaxBackground : MonoBehaviour
     [SerializeField] private float referenceHeight = 1080f;
 
     private int lastThemeIndex = -1;
+    public int ActiveThemeIndex => lastThemeIndex;
 
     /// <summary>Revealed cell color from the currently active theme.</summary>
     public Color ActiveRevealedCellColor =>
@@ -472,6 +473,13 @@ public class ParallaxBackground : MonoBehaviour
             while (index == lastThemeIndex);
         }
 
+        lastThemeIndex = index;
+        SetLayers(themes[index].layers);
+    }
+
+    public void ApplyTheme(int index)
+    {
+        if (themes == null || index < 0 || index >= themes.Length) return;
         lastThemeIndex = index;
         SetLayers(themes[index].layers);
     }

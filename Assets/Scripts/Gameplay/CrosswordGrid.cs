@@ -83,6 +83,15 @@ public class CrosswordGrid : MonoBehaviour
     [Tooltip("Show all letters on the grid (cheat mode)")]
     [SerializeField] private bool cheatShowLetters = false;
 
+    [Header("Cell Coins")]
+    [Tooltip("Number of coin icons to scatter on unrevealed cells")]
+    [SerializeField] private int cellCoinCount = 3;
+    [Tooltip("Size of coin icon as fraction of cell size")]
+    [Range(0.2f, 1f)]
+    [SerializeField] private float coinSizeFraction = 0.4f;
+
+    public event System.Action<RectTransform> OnCoinCollected;
+
     private class GridCell
     {
         public RectTransform rectTransform;
@@ -90,6 +99,8 @@ public class CrosswordGrid : MonoBehaviour
         public TMP_Text letterText;
         public char letter;
         public bool isRevealed;
+        public bool hasCoin;
+        public GameObject coinIcon;
         public List<string> belongsToWords = new List<string>();
     }
 
@@ -143,7 +154,7 @@ public class CrosswordGrid : MonoBehaviour
         return Mathf.Clamp(size, minCellSize, maxCellSize);
     }
 
-    public void BuildGrid(LevelData levelData)
+    public void BuildGrid(LevelData levelData, bool skipCoins = false)
     {
         ClearGrid();
         currentLevel = levelData;
@@ -273,6 +284,138 @@ public class CrosswordGrid : MonoBehaviour
                 cell.letterText.color = cell.isRevealed ? letterColor : new Color(0f, 0f, 0f, 0.7f);
             }
         }
+
+        // Scatter coins on random unrevealed cells (skip when restoring from save)
+        if (!skipCoins)
+            PlaceCellCoins(cellSize);
+    }
+
+    private static Sprite coinSprite;
+
+    private List<Vector2Int> coinPositions = new List<Vector2Int>();
+
+    private void PlaceCellCoins(float cellSize)
+    {
+        // Pick random unrevealed cells for coins
+        var candidates = new List<Vector2Int>();
+        foreach (var kvp in cells)
+        {
+            if (!kvp.Value.isRevealed)
+                candidates.Add(kvp.Key);
+        }
+
+        int count = Mathf.Min(cellCoinCount, candidates.Count);
+        for (int i = 0; i < count; i++)
+        {
+            int j = Random.Range(i, candidates.Count);
+            (candidates[i], candidates[j]) = (candidates[j], candidates[i]);
+        }
+
+        var positions = new List<Vector2Int>();
+        for (int i = 0; i < count; i++)
+            positions.Add(candidates[i]);
+
+        PlaceCellCoinsAt(positions, cellSize);
+    }
+
+    public void PlaceCellCoinsAt(List<Vector2Int> positions, float cellSize)
+    {
+        coinPositions = new List<Vector2Int>(positions);
+
+        if (coinSprite == null)
+            coinSprite = GenerateCoinSprite(64);
+
+        float iconSize = cellSize * coinSizeFraction;
+        foreach (var pos in positions)
+        {
+            if (!cells.ContainsKey(pos)) continue;
+            var cell = cells[pos];
+            if (cell.isRevealed) continue;
+            cell.hasCoin = true;
+
+            var coinGO = new GameObject("CoinIcon", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            coinGO.transform.SetParent(cell.rectTransform, false);
+
+            var rt = coinGO.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(iconSize, iconSize);
+            rt.anchoredPosition = Vector2.zero;
+
+            var img = coinGO.GetComponent<Image>();
+            img.sprite = coinSprite;
+            img.raycastTarget = false;
+
+            var textGO = new GameObject("CoinSymbol", typeof(RectTransform), typeof(CanvasRenderer));
+            textGO.transform.SetParent(coinGO.transform, false);
+            var textRT = textGO.GetComponent<RectTransform>();
+            textRT.anchorMin = Vector2.zero;
+            textRT.anchorMax = Vector2.one;
+            textRT.offsetMin = Vector2.zero;
+            textRT.offsetMax = Vector2.zero;
+            var coinText = textGO.AddComponent<TextMeshProUGUI>();
+            coinText.text = "$";
+            coinText.fontSize = iconSize * 0.5f;
+            coinText.alignment = TextAlignmentOptions.Center;
+            coinText.color = new Color(0.6f, 0.4f, 0f, 0.9f);
+            coinText.fontStyle = FontStyles.Bold;
+            coinText.raycastTarget = false;
+
+            cell.coinIcon = coinGO;
+        }
+    }
+
+    private static Sprite GenerateCoinSprite(int size)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+
+        float center = size * 0.5f;
+        float outerR = size * 0.45f;
+        float innerR = outerR * 0.75f;
+
+        Color gold = new Color(1f, 0.84f, 0.0f, 1f);
+        Color darkGold = new Color(0.85f, 0.65f, 0.0f, 1f);
+        Color highlight = new Color(1f, 0.95f, 0.6f, 1f);
+        Color clear = new Color(0, 0, 0, 0);
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = x - center;
+                float dy = y - center;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+
+                if (dist > outerR + 0.5f)
+                {
+                    tex.SetPixel(x, y, clear);
+                    continue;
+                }
+
+                // Anti-aliased outer edge
+                float outerAlpha = Mathf.Clamp01(outerR - dist + 0.5f);
+
+                // Rim vs face
+                Color col;
+                if (dist > innerR)
+                {
+                    // Rim: darker gold
+                    col = darkGold;
+                }
+                else
+                {
+                    // Face: gradient from highlight (top) to gold (bottom)
+                    float t = (dy / innerR + 1f) * 0.5f; // 0 at bottom, 1 at top
+                    col = Color.Lerp(darkGold, highlight, t * t);
+                }
+
+                col.a = outerAlpha;
+                tex.SetPixel(x, y, col);
+            }
+        }
+
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
     }
 
     public void ClearGrid()
@@ -305,9 +448,11 @@ public class CrosswordGrid : MonoBehaviour
             {
                 cell.isRevealed = true;
                 cell.letterText.text = cell.letter.ToString();
+                cell.letterText.color = letterColor;
                 cell.background.color = cellRevealedColor;
                 if (revealedCellMaterial != null)
                     cell.background.material = revealedCellMaterial;
+                CollectCoin(cell);
 
                 // Staggered punch animation
                 float delay = i * 0.08f;
@@ -348,9 +493,11 @@ public class CrosswordGrid : MonoBehaviour
 
         cell.isRevealed = true;
         cell.letterText.text = cell.letter.ToString();
+        cell.letterText.color = letterColor;
         cell.background.color = cellRevealedColor;
         if (revealedCellMaterial != null)
             cell.background.material = revealedCellMaterial;
+        CollectCoin(cell);
 
         StartCoroutine(TweenHelper.PunchScale(cell.rectTransform, Vector3.one * 0.25f, 0.3f));
     }
@@ -435,6 +582,31 @@ public class CrosswordGrid : MonoBehaviour
         return completedWords;
     }
 
+    private void CollectCoin(GridCell cell)
+    {
+        if (!cell.hasCoin) return;
+        cell.hasCoin = false;
+        if (cell.coinIcon != null)
+            Destroy(cell.coinIcon);
+
+        // Remove from tracked positions
+        foreach (var kvp in cells)
+        {
+            if (kvp.Value == cell)
+            {
+                coinPositions.Remove(kvp.Key);
+                break;
+            }
+        }
+
+        OnCoinCollected?.Invoke(cell.rectTransform);
+    }
+
+    public List<Vector2Int> GetCoinPositions()
+    {
+        return new List<Vector2Int>(coinPositions);
+    }
+
     private Queue<GridCell> pendingHintCells = new Queue<GridCell>();
 
     /// <summary>
@@ -447,9 +619,11 @@ public class CrosswordGrid : MonoBehaviour
 
         var cell = pendingHintCells.Dequeue();
         cell.letterText.text = cell.letter.ToString();
+        cell.letterText.color = letterColor;
         cell.background.color = cellRevealedColor;
         if (revealedCellMaterial != null)
             cell.background.material = revealedCellMaterial;
+        CollectCoin(cell);
         StartCoroutine(TweenHelper.PunchScale(cell.rectTransform, Vector3.one * 0.3f, 0.4f));
 
         lastRevealedHintRT = cell.rectTransform;
