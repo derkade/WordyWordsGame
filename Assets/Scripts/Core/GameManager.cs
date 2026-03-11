@@ -25,8 +25,10 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float comboFuseDrag = 3f;
     [Tooltip("Scale at end of life (1 = no shrink, 0 = shrink to nothing)")]
     [SerializeField] private float comboFuseEndScale = 0.4f;
-    [Tooltip("Color of fuse sparks")]
-    [SerializeField] private Color comboFuseColor = new Color(0.8f, 0.9f, 1f, 1f);
+    [Tooltip("Hot core color of fuse sparks (at birth)")]
+    [SerializeField] private Color comboFuseCoreColor = new Color(1f, 1f, 1f, 1f);
+    [Tooltip("Outer/cooled color of fuse sparks (at death)")]
+    [SerializeField] private Color comboFuseEdgeColor = new Color(0.3f, 0.6f, 1f, 1f);
     [Tooltip("Glow intensity for fuse sparks (HDR multiplier for bloom)")]
     [SerializeField] private float comboFuseGlowIntensity = 3f;
     [Tooltip("Speed randomization (0 = uniform, 1 = full range)")]
@@ -1628,7 +1630,7 @@ public class GameManager : MonoBehaviour
         rt.localScale = Vector3.one;
 
         Image img = rt.GetComponent<Image>();
-        img.color = comboFuseColor;
+        img.color = comboFuseCoreColor;
 
         // Sparks fly outward from ring + random spread
         float spread = Random.Range(-comboFuseSpread, comboFuseSpread) * Mathf.Deg2Rad;
@@ -1645,7 +1647,7 @@ public class GameManager : MonoBehaviour
             velocity = vel,
             age = 0f,
             maxAge = comboFuseLifetime * Random.Range(1f - comboFuseLifetimeVariance, 1f),
-            startColor = comboFuseColor
+            startColor = comboFuseCoreColor
         });
     }
 
@@ -1671,7 +1673,8 @@ public class GameManager : MonoBehaviour
             float t = p.age / p.maxAge;
             float fade = 1f - t * t; // quadratic fade
             float scale = Mathf.Lerp(1f, comboFuseEndScale, t);
-            p.img.color = new Color(p.startColor.r, p.startColor.g, p.startColor.b, fade);
+            Color lerpedColor = Color.Lerp(comboFuseCoreColor, comboFuseEdgeColor, t);
+            p.img.color = new Color(lerpedColor.r, lerpedColor.g, lerpedColor.b, fade);
             p.rt.localScale = Vector3.one * scale;
 
             fuseParticles[i] = p;
