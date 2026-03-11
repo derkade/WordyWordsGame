@@ -61,6 +61,9 @@ Thumbs.db
 *.gradle
 .gradle/
 
+# Android build cache
+.utmp/
+
 # TextMesh Pro
 Assets/TextMesh Pro/
 
