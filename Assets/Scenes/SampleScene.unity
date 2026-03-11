@@ -7298,17 +7298,17 @@ MonoBehaviour:
   - {r: 0.1, g: 0.7, b: 1, a: 0.85}
   - {r: 0.3, g: 0.5, b: 1, a: 0.95}
   - {r: 0.5, g: 0.3, b: 1, a: 1}
-  comboFireSizeOffset: 80
-  comboFireNoiseSpeed: 3
+  comboFireSizeOffset: 200
+  comboFireNoiseSpeed: 6
   comboFireFlameHeight: 0.12
-  comboFireRingRadius: 0.4
+  comboFireRingRadius: 0.3
   comboFireRingWidth: 0.05
   comboFireColor: {r: 0.2, g: 0.6, b: 1, a: 1}
-  comboFireSolidSizeOffset: 80
-  comboFireSolidColor: {r: 0.20000002, g: 0.6, b: 1, a: 1}
+  comboFireSolidSizeOffset: 200
+  comboFireSolidColor: {r: 0.2, g: 0.6, b: 1, a: 1}
   comboEdgeSizeOffset: 10
   comboEdgeThickness: 0.03
-  comboEdgeColor: {r: 0.20000002, g: 0.6, b: 1, a: 1}
+  comboEdgeColor: {r: 0.6, g: 0.8, b: 1, a: 1}
   comboGlowSizeOffset: 60
   comboGlowThickness: 0.22
   comboGlowNoiseSpeed: 5
