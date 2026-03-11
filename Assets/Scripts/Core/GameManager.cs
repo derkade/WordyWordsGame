@@ -6,6 +6,34 @@ using TMPro;
 
 public class GameManager : MonoBehaviour
 {
+    [Header("Combo Fuse Spark")]
+    [Tooltip("Enable spark emitter at the combo fill edge")]
+    [SerializeField] private bool comboFuseEnabled = true;
+    [Tooltip("Sparks emitted per second")]
+    [SerializeField] private float comboFuseRate = 30f;
+    [Tooltip("Size of each spark particle in pixels")]
+    [SerializeField] private float comboFuseSize = 48f;
+    [Tooltip("Speed of sparks flying outward from the ring")]
+    [SerializeField] private float comboFuseSpeed = 120f;
+    [Tooltip("Lifetime of each spark in seconds")]
+    [SerializeField] private float comboFuseLifetime = 0.4f;
+    [Tooltip("Random spread angle in degrees (0 = straight out, 180 = hemisphere)")]
+    [SerializeField] private float comboFuseSpread = 30f;
+    [Tooltip("Downward gravity applied to sparks (pixels/sec²)")]
+    [SerializeField] private float comboFuseGravity = 300f;
+    [Tooltip("Drag/slowdown per second (0 = none, 3 = fast stop)")]
+    [SerializeField] private float comboFuseDrag = 3f;
+    [Tooltip("Scale at end of life (1 = no shrink, 0 = shrink to nothing)")]
+    [SerializeField] private float comboFuseEndScale = 0.4f;
+    [Tooltip("Color of fuse sparks")]
+    [SerializeField] private Color comboFuseColor = new Color(0.8f, 0.9f, 1f, 1f);
+    [Tooltip("Glow intensity for fuse sparks (HDR multiplier for bloom)")]
+    [SerializeField] private float comboFuseGlowIntensity = 3f;
+    [Tooltip("Speed randomization (0 = uniform, 1 = full range)")]
+    [SerializeField] private float comboFuseSpeedVariance = 0.4f;
+    [Tooltip("Lifetime randomization (0 = uniform, 1 = full range)")]
+    [SerializeField] private float comboFuseLifetimeVariance = 0.4f;
+
     [Header("Level Data")]
     [Tooltip("Generate random puzzles instead of using pre-baked levels")]
     [SerializeField] private bool useRandomLevels = true;
@@ -131,6 +159,12 @@ public class GameManager : MonoBehaviour
     };
 
     [Header("Combo Fire Ring - Additive (glow, behind wheel)")]
+    [Tooltip("Enable/disable the additive fire layer")]
+    [SerializeField] private bool comboFireEnabled = true;
+    [Tooltip("Draw in front of wheel instead of behind")]
+    [SerializeField] private bool comboFireInFront = false;
+    [Tooltip("Draw order among combo layers (lower = further back)")]
+    [SerializeField] private int comboFireOrder = 2;
     [Tooltip("Extra pixels beyond wheel background size (make large enough so flames don't clip)")]
     [SerializeField] private float comboFireSizeOffset = 200f;
     [Tooltip("Speed of the flame noise animation")]
@@ -141,16 +175,34 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float comboFireRingRadius = 0.30f;
     [Tooltip("Base width of the ring in UV space")]
     [SerializeField] private float comboFireRingWidth = 0.07f;
+    [Tooltip("Inner cutoff radius (0 = auto from ring center - width/2)")]
+    [SerializeField] private float comboFireInnerRadius = 0.0f;
+    [Tooltip("HDR glow intensity multiplier (higher = more bloom)")]
+    [SerializeField] private float comboFireGlowIntensity = 2.0f;
     [Tooltip("Tint color for the additive fire layer")]
     [SerializeField] private Color comboFireColor = new Color(0.2f, 0.6f, 1f, 1f);
 
     [Header("Combo Fire Ring - Solid (opaque, behind wheel)")]
+    [Tooltip("Enable/disable the solid fire layer")]
+    [SerializeField] private bool comboFireSolidEnabled = true;
+    [Tooltip("Draw in front of wheel instead of behind")]
+    [SerializeField] private bool comboFireSolidInFront = false;
+    [Tooltip("Draw order among combo layers (lower = further back)")]
+    [SerializeField] private int comboFireSolidOrder = 1;
     [Tooltip("Extra pixels beyond wheel background size (match fire additive)")]
     [SerializeField] private float comboFireSolidSizeOffset = 200f;
+    [Tooltip("HDR glow intensity multiplier (higher = more bloom)")]
+    [SerializeField] private float comboFireSolidGlowIntensity = 1.0f;
     [Tooltip("Tint color for the solid fire layer")]
     [SerializeField] private Color comboFireSolidColor = new Color(0.2f, 0.6f, 1f, 1f);
 
     [Header("Combo Edge Ring (thin solid line, on top of wheel)")]
+    [Tooltip("Enable/disable the edge ring layer")]
+    [SerializeField] private bool comboEdgeEnabled = true;
+    [Tooltip("Draw in front of wheel instead of behind")]
+    [SerializeField] private bool comboEdgeInFront = true;
+    [Tooltip("Draw order among combo layers (lower = further back)")]
+    [SerializeField] private int comboEdgeOrder = 3;
     [Tooltip("Extra pixels beyond wheel background size")]
     [SerializeField] private float comboEdgeSizeOffset = 10f;
     [Tooltip("Ring thickness as fraction of texture size")]
@@ -158,19 +210,6 @@ public class GameManager : MonoBehaviour
     [Tooltip("Color of the thin edge ring on top of the wheel")]
     [SerializeField] private Color comboEdgeColor = new Color(0.6f, 0.8f, 1f, 1f);
 
-    [Header("Combo Glow (additive, behind wheel)")]
-    [Tooltip("Extra pixels beyond wheel background size")]
-    [SerializeField] private float comboGlowSizeOffset = 60f;
-    [Tooltip("Ring thickness as fraction of texture size")]
-    [SerializeField] private float comboGlowThickness = 0.22f;
-    [Tooltip("Speed of the glow noise animation")]
-    [SerializeField] private float comboGlowNoiseSpeed = 5.0f;
-    [Tooltip("Intensity of the glow noise displacement")]
-    [SerializeField] private float comboGlowNoiseIntensity = 0.6f;
-    [Tooltip("Alpha multiplier for the glow layer")]
-    [SerializeField] private float comboGlowAlpha = 0.5f;
-    [Tooltip("Tint color for the glow layer")]
-    [SerializeField] private Color comboGlowColor = new Color(0.2f, 0.6f, 1f, 1f);
 
     [Header("Combo Text")]
     [Tooltip("Font size for the combo multiplier text")]
@@ -224,10 +263,26 @@ public class GameManager : MonoBehaviour
     private Material comboFireMat;
     private Image comboFireSolid;     // solid fire behind wheel (same shape, normal blend)
     private Material comboFireSolidMat;
-    private Image comboRingGlow;      // glow behind wheel (FlameRing shader, additive)
-    private Material comboGlowMat;
     private Image comboRingEdge;      // thin solid line on top of wheel
     private TMP_Text comboCountText;
+
+    // Fuse spark system
+    private List<FuseParticle> fuseParticles = new List<FuseParticle>();
+    private List<RectTransform> fusePool = new List<RectTransform>();
+    private float fuseEmitAccum;
+    private Sprite fuseSpark;
+    private Material fuseGlowMat;
+    private Transform fuseContainer;
+
+    private struct FuseParticle
+    {
+        public RectTransform rt;
+        public Image img;
+        public Vector2 velocity;
+        public float age;
+        public float maxAge;
+        public Color startColor;
+    }
 
     private void Start()
     {
@@ -345,11 +400,18 @@ public class GameManager : MonoBehaviour
             float fill = Mathf.Clamp01(comboTimer / comboTimeWindow);
             if (comboFireMat != null) comboFireMat.SetFloat("_FillAmount", fill);
             if (comboFireSolidMat != null) comboFireSolidMat.SetFloat("_FillAmount", fill);
-            if (comboGlowMat != null) comboGlowMat.SetFloat("_FillAmount", fill);
             if (comboRingEdge != null) comboRingEdge.fillAmount = fill;
+
+            // Emit fuse sparks at the fill edge
+            if (comboFuseEnabled && fuseContainer != null && comboRingEdge != null)
+                EmitFuseSparks(fill);
+
             if (comboTimer <= 0f)
                 ResetCombo();
         }
+
+        // Update fuse particles
+        UpdateFuseParticles();
     }
 
     public void LoadLevel(int index)
@@ -1288,30 +1350,6 @@ public class GameManager : MonoBehaviour
     {
         Transform wheelParent = letterWheel.transform;
 
-        // Additive glow ring behind wheel (ambient fire halo)
-        if (comboRingGlow == null)
-        {
-            var glowGO = new GameObject("ComboRingGlow", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-            glowGO.transform.SetParent(wheelParent, false);
-
-            comboRingGlow = glowGO.GetComponent<Image>();
-            comboRingGlow.sprite = GenerateGlowRingSprite(256, comboGlowThickness);
-            comboRingGlow.type = Image.Type.Simple;
-            comboRingGlow.raycastTarget = false;
-
-            var flameShader = Shader.Find("UI/FlameRing");
-            if (flameShader != null)
-            {
-                comboGlowMat = new Material(flameShader);
-                comboGlowMat.SetFloat("_FillAmount", 0f);
-                comboGlowMat.SetFloat("_NoiseSpeed", comboGlowNoiseSpeed);
-                comboGlowMat.SetFloat("_NoiseIntensity", comboGlowNoiseIntensity);
-                comboRingGlow.material = comboGlowMat;
-            }
-
-            glowGO.transform.SetSiblingIndex(0);
-        }
-
         // Solid fire ring (normal blend — gives body/opacity to the flames)
         if (comboFireSolid == null)
         {
@@ -1333,10 +1371,10 @@ public class GameManager : MonoBehaviour
                 comboFireSolidMat.SetFloat("_FlameHeight", comboFireFlameHeight);
                 comboFireSolidMat.SetFloat("_RingRadius", comboFireRingRadius);
                 comboFireSolidMat.SetFloat("_RingWidth", comboFireRingWidth);
+                comboFireSolidMat.SetFloat("_GlowIntensity", comboFireSolidGlowIntensity);
                 comboFireSolid.material = comboFireSolidMat;
             }
 
-            solidGO.transform.SetSiblingIndex(0);
         }
 
         // Additive fire ring (glow on top of solid, behind wheel)
@@ -1360,10 +1398,11 @@ public class GameManager : MonoBehaviour
                 comboFireMat.SetFloat("_FlameHeight", comboFireFlameHeight);
                 comboFireMat.SetFloat("_RingRadius", comboFireRingRadius);
                 comboFireMat.SetFloat("_RingWidth", comboFireRingWidth);
+                comboFireMat.SetFloat("_InnerRadius", comboFireInnerRadius);
+                comboFireMat.SetFloat("_GlowIntensity", comboFireGlowIntensity);
                 comboFireRing.material = comboFireMat;
             }
 
-            fireGO.transform.SetSiblingIndex(0);
         }
 
         // Thin solid edge ring on top of wheel (no custom shader, just hard sprite + default UI)
@@ -1381,8 +1420,6 @@ public class GameManager : MonoBehaviour
             comboRingEdge.fillAmount = 0f;
             comboRingEdge.raycastTarget = false;
 
-            // On top of wheel — sibling order is all that's needed
-            edgeGO.transform.SetAsLastSibling();
         }
 
         if (comboCountText == null)
@@ -1401,26 +1438,101 @@ public class GameManager : MonoBehaviour
             comboCountText.text = "";
         }
 
-        // Size rings
+        // Size rings and apply enable toggles
         float fireSize = letterWheel.WheelBackgroundSize + comboFireSizeOffset;
         comboFireRing.rectTransform.sizeDelta = new Vector2(fireSize, fireSize);
         comboFireRing.rectTransform.anchoredPosition = Vector2.zero;
+        comboFireRing.enabled = false;
+
         float fireSolidSize = letterWheel.WheelBackgroundSize + comboFireSolidSizeOffset;
         comboFireSolid.rectTransform.sizeDelta = new Vector2(fireSolidSize, fireSolidSize);
         comboFireSolid.rectTransform.anchoredPosition = Vector2.zero;
-        float glowSize = letterWheel.WheelBackgroundSize + comboGlowSizeOffset;
-        comboRingGlow.rectTransform.sizeDelta = new Vector2(glowSize, glowSize);
-        comboRingGlow.rectTransform.anchoredPosition = Vector2.zero;
+        comboFireSolid.enabled = false;
+
         float edgeSize = letterWheel.WheelBackgroundSize + comboEdgeSizeOffset;
         comboRingEdge.rectTransform.sizeDelta = new Vector2(edgeSize, edgeSize);
         comboRingEdge.rectTransform.anchoredPosition = Vector2.zero;
+        comboRingEdge.enabled = false;
 
         // Position text above the wheel
         float textY = letterWheel.WheelBackgroundSize * 0.5f + comboTextYOffset;
         comboCountText.rectTransform.sizeDelta = new Vector2(200f, 70f);
         comboCountText.rectTransform.anchoredPosition = new Vector2(0f, textY);
 
+        // Set up fuse spark container (on top of everything)
+        if (fuseContainer == null)
+        {
+            var fuseGO = new GameObject("ComboFuseSparks", typeof(RectTransform));
+            fuseGO.transform.SetParent(wheelParent, false);
+            fuseContainer = fuseGO.transform;
+            var fuseRT = fuseGO.GetComponent<RectTransform>();
+            fuseRT.anchoredPosition = Vector2.zero;
+            fuseRT.sizeDelta = Vector2.zero;
+
+            // Generate soft circle sprite for sparks
+            if (fuseSpark == null)
+                fuseSpark = GenerateFuseSparkSprite();
+
+            // Get glow material from existing particle effect or create one
+            var glowShader = Shader.Find("UI/Glow");
+            if (glowShader != null)
+            {
+                fuseGlowMat = new Material(glowShader);
+                fuseGlowMat.SetFloat("_GlowIntensity", comboFuseGlowIntensity);
+            }
+        }
+
+        // Order combo layers relative to the wheel
+        OrderComboLayers();
+
         ResetCombo();
+    }
+
+    private void OrderComboLayers()
+    {
+        Transform wheelBG = letterWheel.WheelBackground;
+        if (wheelBG == null) return;
+
+        // Collect layers with their order and front/behind setting
+        var layers = new List<(Transform t, int order, bool inFront)>();
+        if (comboFireRing != null)
+            layers.Add((comboFireRing.transform, comboFireOrder, comboFireInFront));
+        if (comboFireSolid != null)
+            layers.Add((comboFireSolid.transform, comboFireSolidOrder, comboFireSolidInFront));
+        if (comboRingEdge != null)
+            layers.Add((comboRingEdge.transform, comboEdgeOrder, comboEdgeInFront));
+        if (comboCountText != null)
+            layers.Add((comboCountText.transform, 99, true)); // text always on top
+
+        // Sort by order value
+        layers.Sort((a, b) => a.order.CompareTo(b.order));
+
+        // First, park all combo layers at the end so they don't interfere with index math
+        foreach (var (t, _, _) in layers)
+            t.SetAsLastSibling();
+
+        // Now place behind-wheel layers just before the wheel, in order
+        foreach (var (t, _, inFront) in layers)
+        {
+            if (!inFront)
+            {
+                // Always re-read wheel index since each insert shifts it
+                int wheelIdx = wheelBG.GetSiblingIndex();
+                t.SetSiblingIndex(wheelIdx);
+            }
+        }
+
+        // In-front layers are already at the end from the parking step,
+        // but re-set them in sorted order to be safe
+        foreach (var (t, _, inFront) in layers)
+        {
+            if (inFront)
+                t.SetAsLastSibling();
+        }
+
+        // Fuse sparks always on top of everything
+        if (fuseContainer != null)
+            fuseContainer.SetAsLastSibling();
     }
 
     private void IncrementCombo()
@@ -1429,31 +1541,23 @@ public class GameManager : MonoBehaviour
         comboTimer = comboTimeWindow;
 
         {
-            if (comboFireRing != null)
+            if (comboFireEnabled && comboFireRing != null)
             {
+                comboFireRing.enabled = true;
                 comboFireRing.color = comboFireColor;
                 if (comboFireMat != null)
                     comboFireMat.SetFloat("_FillAmount", 1f);
             }
-            if (comboFireSolid != null)
+            if (comboFireSolidEnabled && comboFireSolid != null)
             {
+                comboFireSolid.enabled = true;
                 comboFireSolid.color = comboFireSolidColor;
                 if (comboFireSolidMat != null)
                     comboFireSolidMat.SetFloat("_FillAmount", 1f);
             }
-            if (comboRingGlow != null)
+            if (comboEdgeEnabled && comboRingEdge != null)
             {
-                Color glowC = comboGlowColor;
-                glowC.a = comboGlowAlpha;
-                comboRingGlow.color = glowC;
-                if (comboGlowMat != null)
-                {
-                    comboGlowMat.SetFloat("_FillAmount", 1f);
-                    comboGlowMat.SetColor("_Color", comboGlowColor);
-                }
-            }
-            if (comboRingEdge != null)
-            {
+                comboRingEdge.enabled = true;
                 comboRingEdge.fillAmount = 1f;
                 comboRingEdge.color = comboEdgeColor;
             }
@@ -1485,10 +1589,142 @@ public class GameManager : MonoBehaviour
         comboTimer = 0f;
         if (comboFireMat != null) comboFireMat.SetFloat("_FillAmount", -0.1f);
         if (comboFireSolidMat != null) comboFireSolidMat.SetFloat("_FillAmount", -0.1f);
-        if (comboGlowMat != null) comboGlowMat.SetFloat("_FillAmount", -0.1f);
         if (comboRingEdge != null) comboRingEdge.fillAmount = 0f;
         if (comboCountText != null)
             comboCountText.text = "";
+        fuseEmitAccum = 0f;
+    }
+
+    private void EmitFuseSparks(float fill)
+    {
+        if (fill <= 0f) return;
+
+        fuseEmitAccum += Time.deltaTime * comboFuseRate;
+        while (fuseEmitAccum >= 1f)
+        {
+            fuseEmitAccum -= 1f;
+            SpawnFuseSpark(fill);
+        }
+    }
+
+    private void SpawnFuseSpark(float fill)
+    {
+        // fillClockwise=true draws filled portion CW from top, so the edge
+        // moves CCW as fill decreases. Edge is at fill*360 degrees CW from top.
+        // Math angle: 90 (top) minus CW degrees
+        float angleDeg = fill * 360f;
+        float angleRad = (90f - angleDeg) * Mathf.Deg2Rad;
+
+        // Position on the edge ring radius
+        float edgeSize = comboRingEdge.rectTransform.sizeDelta.x;
+        float ringPixelRadius = edgeSize * 0.49f; // match GenerateHardRingSprite outer radius
+        float px = Mathf.Cos(angleRad) * ringPixelRadius;
+        float py = Mathf.Sin(angleRad) * ringPixelRadius;
+
+        RectTransform rt = GetOrCreateFuseSpark();
+        rt.gameObject.SetActive(true);
+        rt.anchoredPosition = new Vector2(px, py);
+        rt.sizeDelta = new Vector2(comboFuseSize, comboFuseSize);
+        rt.localScale = Vector3.one;
+
+        Image img = rt.GetComponent<Image>();
+        img.color = comboFuseColor;
+
+        // Sparks fly outward from ring + random spread
+        float spread = Random.Range(-comboFuseSpread, comboFuseSpread) * Mathf.Deg2Rad;
+        float outAngle = angleRad + spread;
+        float spdMin = 1f - comboFuseSpeedVariance;
+        float spdMax = 1f + comboFuseSpeedVariance;
+        float spd = comboFuseSpeed * Random.Range(spdMin, spdMax);
+        Vector2 vel = new Vector2(Mathf.Cos(outAngle), Mathf.Sin(outAngle)) * spd;
+
+        fuseParticles.Add(new FuseParticle
+        {
+            rt = rt,
+            img = img,
+            velocity = vel,
+            age = 0f,
+            maxAge = comboFuseLifetime * Random.Range(1f - comboFuseLifetimeVariance, 1f),
+            startColor = comboFuseColor
+        });
+    }
+
+    private void UpdateFuseParticles()
+    {
+        float dt = Time.deltaTime;
+        for (int i = fuseParticles.Count - 1; i >= 0; i--)
+        {
+            var p = fuseParticles[i];
+            p.age += dt;
+
+            if (p.age >= p.maxAge)
+            {
+                p.rt.gameObject.SetActive(false);
+                fuseParticles.RemoveAt(i);
+                continue;
+            }
+
+            p.velocity.y -= comboFuseGravity * dt;
+            p.rt.anchoredPosition += p.velocity * dt;
+            p.velocity *= Mathf.Max(0f, 1f - comboFuseDrag * dt);
+
+            float t = p.age / p.maxAge;
+            float fade = 1f - t * t; // quadratic fade
+            float scale = Mathf.Lerp(1f, comboFuseEndScale, t);
+            p.img.color = new Color(p.startColor.r, p.startColor.g, p.startColor.b, fade);
+            p.rt.localScale = Vector3.one * scale;
+
+            fuseParticles[i] = p;
+        }
+    }
+
+    private RectTransform GetOrCreateFuseSpark()
+    {
+        foreach (var rt in fusePool)
+        {
+            if (!rt.gameObject.activeSelf)
+                return rt;
+        }
+
+        var go = new GameObject("FuseSpark", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        go.transform.SetParent(fuseContainer, false);
+        var newRT = go.GetComponent<RectTransform>();
+        newRT.anchorMin = new Vector2(0.5f, 0.5f);
+        newRT.anchorMax = new Vector2(0.5f, 0.5f);
+        newRT.pivot = new Vector2(0.5f, 0.5f);
+
+        Image img = go.GetComponent<Image>();
+        img.raycastTarget = false;
+        if (fuseSpark != null) img.sprite = fuseSpark;
+        if (fuseGlowMat != null) img.material = fuseGlowMat;
+
+        fusePool.Add(newRT);
+        return newRT;
+    }
+
+    private Sprite GenerateFuseSparkSprite()
+    {
+        int size = 32;
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.filterMode = FilterMode.Bilinear;
+        tex.wrapMode = TextureWrapMode.Clamp;
+        float center = size * 0.5f;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = x - center + 0.5f;
+                float dy = y - center + 0.5f;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy) / center;
+                float alpha = Mathf.Pow(Mathf.Clamp01(1f - dist), 2f);
+                float bright = Mathf.Min(alpha * 2f, 1f);
+                tex.SetPixel(x, y, new Color(bright, bright, bright, alpha));
+            }
+        }
+
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
     }
 
     private IEnumerator ComboSurge()
@@ -1529,55 +1765,6 @@ public class GameManager : MonoBehaviour
         if (comboCountText != null)
             comboCountText.fontSize = comboTextFontSize;
         ResetCombo();
-    }
-
-    private static Sprite GenerateGlowRingSprite(int size, float thicknessFraction)
-    {
-        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
-        tex.wrapMode = TextureWrapMode.Clamp;
-        tex.filterMode = FilterMode.Bilinear;
-
-        float center = size * 0.5f;
-        float outerR = size * 0.47f;
-        float ringWidth = thicknessFraction * size;
-        float ringCenter = outerR - ringWidth * 0.5f;
-        float halfW = ringWidth * 0.5f;
-
-        // Perlin noise settings for flame-like edges
-        float noiseFreq1 = 4f;   // primary flame frequency
-        float noiseFreq2 = 8f;   // detail frequency
-        float noiseAmp1 = 0.35f; // primary amplitude (fraction of halfW)
-        float noiseAmp2 = 0.15f; // detail amplitude
-
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float dx = x - center;
-                float dy = y - center;
-                float dist = Mathf.Sqrt(dx * dx + dy * dy);
-
-                // Angle for noise sampling (0 to 1 around the circle)
-                float angle = (Mathf.Atan2(dy, dx) / (2f * Mathf.PI) + 0.5f);
-
-                // Multi-octave perlin noise modulates the ring width
-                float n1 = Mathf.PerlinNoise(angle * noiseFreq1 + 0.3f, 0.5f) - 0.5f;
-                float n2 = Mathf.PerlinNoise(angle * noiseFreq2 + 7.1f, 3.2f) - 0.5f;
-                float noiseOffset = (n1 * noiseAmp1 + n2 * noiseAmp2) * halfW * 2f;
-
-                // Shift the ring center outward by noise (flame tongues)
-                float localCenter = ringCenter + noiseOffset;
-
-                float d = Mathf.Abs(dist - localCenter) / halfW;
-                float alpha = Mathf.Clamp01(1f - d);
-                alpha *= alpha; // quadratic falloff
-
-                tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
-            }
-        }
-
-        tex.Apply();
-        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
     }
 
     /// <summary>Solid ring sprite with hard edges (1px AA). No noise, no gradient, alpha=1 everywhere inside.</summary>

@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 
-public class SwipeController : MonoBehaviour, IPointerUpHandler, IPointerDownHandler, IDragHandler
+public class SwipeController : MonoBehaviour, IPointerUpHandler, IPointerDownHandler, IDragHandler, ICanvasRaycastFilter
 {
     [Tooltip("Reference to the UISwipeLine that draws the swipe trail")]
     [SerializeField] private UISwipeLine swipeLine;
@@ -25,6 +25,16 @@ public class SwipeController : MonoBehaviour, IPointerUpHandler, IPointerDownHan
     private HashSet<string> foundExtraWords = new HashSet<string>();
     private Canvas parentCanvas;
     private Camera canvasCamera;
+
+    // Only accept raycasts within the wheel circle so grid cells in the overlap zone stay clickable
+    public bool IsRaycastLocationValid(Vector2 screenPoint, Camera eventCamera)
+    {
+        if (wheelContainerRect == null) return true;
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            wheelContainerRect, screenPoint, eventCamera, out Vector2 local);
+        float radius = Mathf.Min(wheelContainerRect.rect.width, wheelContainerRect.rect.height) * 0.5f;
+        return local.sqrMagnitude <= radius * radius;
+    }
 
     private void OnEnable()
     {

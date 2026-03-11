@@ -9,6 +9,8 @@ Shader "UI/FireRing"
         _FlameHeight ("Flame Height", Range(0, 0.3)) = 0.12
         _RingRadius ("Ring Center Radius", Range(0.1, 0.5)) = 0.40
         _RingWidth ("Ring Base Width", Range(0.01, 0.15)) = 0.05
+        _InnerRadius ("Inner Cutoff Radius", Range(0.0, 0.5)) = 0.0
+        _GlowIntensity ("Glow Intensity", Range(0.5, 20)) = 2.0
 
         _StencilComp ("Stencil Comparison", Float) = 8
         _Stencil ("Stencil ID", Float) = 0
@@ -79,6 +81,8 @@ Shader "UI/FireRing"
             float _FlameHeight;
             float _RingRadius;
             float _RingWidth;
+            float _InnerRadius;
+            float _GlowIntensity;
 
             float hash(float2 p)
             {
@@ -128,7 +132,8 @@ Shader "UI/FireRing"
                 float flameDisp = noise * _FlameHeight;
 
                 float halfW = _RingWidth * 0.5;
-                float innerEdge = _RingRadius - halfW;
+                float defaultInner = _RingRadius - halfW;
+                float innerEdge = _InnerRadius > 0.001 ? _InnerRadius : defaultInner;
                 float outerEdge = _RingRadius + halfW + flameDisp;
 
                 // Hard inner edge (crisp boundary against wheel), soft outer (flame tips fade)
@@ -162,6 +167,9 @@ Shader "UI/FireRing"
                 float fillAngle = frac(atan2(c.x, c.y) / 6.28318530);
                 float fillNoise = (vnoise(float2(fillAngle * 8.0, t * 2.0)) - 0.5) * 0.04;
                 col.a *= saturate((_FillAmount + fillNoise - fillAngle) * 40.0);
+
+                // HDR boost for bloom pickup
+                col.rgb *= _GlowIntensity;
 
                 #ifdef UNITY_UI_CLIP_RECT
                 half2 m = saturate((_ClipRect.zw - _ClipRect.xy - abs(i.worldPosition.xy * 2 - _ClipRect.xy - _ClipRect.zw)) * 200.0);

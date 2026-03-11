@@ -48,6 +48,8 @@ public class LetterWheel : MonoBehaviour
     [SerializeField] private float wheelShadowBlur = 5f;
     [Tooltip("Extra padding around shape for shadow rendering")]
     [SerializeField] private float wheelShadowExpand = 6f;
+    [Tooltip("Extra quad padding so bevel/border don't clip at RectTransform edge")]
+    [SerializeField] private float wheelQuadPadding = 50f;
 
     [Header("Wheel Inner Bevel")]
     [Tooltip("How deep the bevel extends from the edge in pixels")]
@@ -68,6 +70,8 @@ public class LetterWheel : MonoBehaviour
 
     /// <summary>Expanded size of the wheel background (including shadow expand), set after BuildWheel.</summary>
     public float WheelBackgroundSize { get; private set; }
+    /// <summary>The wheel background transform, used for sibling ordering.</summary>
+    public Transform WheelBackground => wheelBackground != null ? wheelBackground.transform : null;
 
     private void Start()
     {
@@ -125,19 +129,22 @@ public class LetterWheel : MonoBehaviour
             float bgSize = wheelRadius * 2f + tileSize * backgroundPadding;
             float shadowExp = Mathf.Max(wheelShadowExpand, 0f);
             float expandedSize = bgSize + shadowExp * 2f;
-            wheelBackground.rectTransform.sizeDelta = new Vector2(expandedSize, expandedSize);
+            float quadSize = expandedSize + wheelQuadPadding * 2f;
+            wheelBackground.rectTransform.sizeDelta = new Vector2(quadSize, quadSize);
             WheelBackgroundSize = expandedSize;
 
             if (wheelMaterial != null)
             {
-                wheelMaterial.SetVector("_RectSize", new Vector4(expandedSize, expandedSize, 0, 0));
+                // Tell shader the full quad size so UV mapping is correct
+                wheelMaterial.SetVector("_RectSize", new Vector4(quadSize, quadSize, 0, 0));
                 wheelMaterial.SetFloat("_Radius", expandedSize * 0.5f);
                 wheelMaterial.SetFloat("_BorderWidth", wheelBorderWidth);
                 wheelMaterial.SetColor("_BorderColor", wheelBorderColor);
                 wheelMaterial.SetColor("_ShadowColor", wheelShadowColor);
                 wheelMaterial.SetVector("_ShadowOffset", new Vector4(wheelShadowOffset.x, wheelShadowOffset.y, 0, 0));
                 wheelMaterial.SetFloat("_ShadowBlur", wheelShadowBlur);
-                wheelMaterial.SetFloat("_ShadowExpand", shadowExp);
+                // Increase shadow expand to account for quad padding so circle stays same visual size
+                wheelMaterial.SetFloat("_ShadowExpand", shadowExp + wheelQuadPadding);
                 wheelMaterial.SetFloat("_BevelSize", wheelBevelSize);
                 wheelMaterial.SetFloat("_BevelStrength", wheelBevelStrength);
             }

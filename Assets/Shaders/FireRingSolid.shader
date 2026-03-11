@@ -9,6 +9,7 @@ Shader "UI/FireRingSolid"
         _FlameHeight ("Flame Height", Range(0, 0.3)) = 0.12
         _RingRadius ("Ring Center Radius", Range(0.1, 0.5)) = 0.40
         _RingWidth ("Ring Base Width", Range(0.01, 0.15)) = 0.05
+        _GlowIntensity ("Glow Intensity", Range(0.5, 20)) = 1.0
 
         _StencilComp ("Stencil Comparison", Float) = 8
         _Stencil ("Stencil ID", Float) = 0
@@ -79,6 +80,7 @@ Shader "UI/FireRingSolid"
             float _FlameHeight;
             float _RingRadius;
             float _RingWidth;
+            float _GlowIntensity;
 
             float hash(float2 p)
             {
@@ -162,6 +164,9 @@ Shader "UI/FireRingSolid"
                 float fillAngle = frac(atan2(c.x, c.y) / 6.28318530);
                 float fillNoise = (vnoise(float2(fillAngle * 8.0, t * 2.0)) - 0.5) * 0.04;
                 col.a *= saturate((_FillAmount + fillNoise - fillAngle) * 40.0);
+
+                // HDR boost for bloom pickup
+                col.rgb *= _GlowIntensity;
 
                 #ifdef UNITY_UI_CLIP_RECT
                 half2 m = saturate((_ClipRect.zw - _ClipRect.xy - abs(i.worldPosition.xy * 2 - _ClipRect.xy - _ClipRect.zw)) * 200.0);
