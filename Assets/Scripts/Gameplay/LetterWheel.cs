@@ -293,6 +293,16 @@ public class LetterWheel : MonoBehaviour
 
     public List<LetterTile> Tiles => tiles;
 
+    /// <summary>Show/hide wheel border and bevel (hidden when fire ring covers the edge).</summary>
+    public void SetEdgeEffects(bool enabled)
+    {
+        if (wheelMaterial != null)
+        {
+            wheelMaterial.SetFloat("_BorderWidth", enabled ? wheelBorderWidth : 0f);
+            wheelMaterial.SetFloat("_BevelStrength", enabled ? wheelBevelStrength : 0f);
+        }
+    }
+
     private static Sprite GenerateShuffleSprite(int size)
     {
         var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);

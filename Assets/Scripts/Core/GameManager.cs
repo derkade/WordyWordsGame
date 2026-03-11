@@ -117,7 +117,7 @@ public class GameManager : MonoBehaviour
 
     [Header("Combo System")]
     [Tooltip("Time window to chain words for combo")]
-    [SerializeField] private float comboTimeWindow = 8f;
+    [SerializeField] private float comboTimeWindow = 12f;
     [Tooltip("Combo level that triggers the surge auto-reveal")]
     [SerializeField] private int maxComboLevel = 5;
     [Tooltip("Color of the combo ring at each level (index 0 = x1)")]
@@ -129,6 +129,55 @@ public class GameManager : MonoBehaviour
         new Color(0.3f, 0.5f, 1f, 0.95f),  // x4: intense blue
         new Color(0.5f, 0.3f, 1f, 1f),     // x5: blue-purple (surge!)
     };
+
+    [Header("Combo Fire Ring - Additive (glow, behind wheel)")]
+    [Tooltip("Extra pixels beyond wheel background size (make large enough so flames don't clip)")]
+    [SerializeField] private float comboFireSizeOffset = 200f;
+    [Tooltip("Speed of the flame noise animation")]
+    [SerializeField] private float comboFireNoiseSpeed = 6.0f;
+    [Tooltip("How far flame tongues extend outward (UV space)")]
+    [SerializeField] private float comboFireFlameHeight = 0.12f;
+    [Tooltip("Center radius of the ring in UV space (0.5 = edge of texture)")]
+    [SerializeField] private float comboFireRingRadius = 0.30f;
+    [Tooltip("Base width of the ring in UV space")]
+    [SerializeField] private float comboFireRingWidth = 0.05f;
+    [Tooltip("Tint color for the additive fire layer")]
+    [SerializeField] private Color comboFireColor = new Color(0.2f, 0.6f, 1f, 1f);
+
+    [Header("Combo Fire Ring - Solid (opaque, behind wheel)")]
+    [Tooltip("Extra pixels beyond wheel background size (match fire additive)")]
+    [SerializeField] private float comboFireSolidSizeOffset = 200f;
+    [Tooltip("Tint color for the solid fire layer")]
+    [SerializeField] private Color comboFireSolidColor = new Color(0.2f, 0.6f, 1f, 1f);
+
+    [Header("Combo Edge Ring (thin solid line, on top of wheel)")]
+    [Tooltip("Extra pixels beyond wheel background size")]
+    [SerializeField] private float comboEdgeSizeOffset = 10f;
+    [Tooltip("Ring thickness as fraction of texture size")]
+    [SerializeField] private float comboEdgeThickness = 0.03f;
+    [Tooltip("Color of the thin edge ring on top of the wheel")]
+    [SerializeField] private Color comboEdgeColor = new Color(0.6f, 0.8f, 1f, 1f);
+
+    [Header("Combo Glow (additive, behind wheel)")]
+    [Tooltip("Extra pixels beyond wheel background size")]
+    [SerializeField] private float comboGlowSizeOffset = 60f;
+    [Tooltip("Ring thickness as fraction of texture size")]
+    [SerializeField] private float comboGlowThickness = 0.22f;
+    [Tooltip("Speed of the glow noise animation")]
+    [SerializeField] private float comboGlowNoiseSpeed = 5.0f;
+    [Tooltip("Intensity of the glow noise displacement")]
+    [SerializeField] private float comboGlowNoiseIntensity = 0.6f;
+    [Tooltip("Alpha multiplier for the glow layer")]
+    [SerializeField] private float comboGlowAlpha = 0.5f;
+    [Tooltip("Tint color for the glow layer")]
+    [SerializeField] private Color comboGlowColor = new Color(0.2f, 0.6f, 1f, 1f);
+
+    [Header("Combo Text")]
+    [Tooltip("Font size for the combo multiplier text")]
+    [SerializeField] private float comboTextFontSize = 52f;
+    [Tooltip("Y offset above the wheel center")]
+    [SerializeField] private float comboTextYOffset = 60f;
+    [SerializeField] private float comboTextOutlineWidth = 0.5f;
 
     [Header("Persistence")]
     [Tooltip("Save/restore level and coins across sessions (enable for builds)")]
@@ -171,8 +220,13 @@ public class GameManager : MonoBehaviour
     // Combo system
     private int comboCount;
     private float comboTimer;
-    private Image comboRingBase;  // solid opaque ring (visible against white)
-    private Image comboRingGlow;  // additive glow ring on top
+    private Image comboFireRing;      // additive fire behind wheel
+    private Material comboFireMat;
+    private Image comboFireSolid;     // solid fire behind wheel (same shape, normal blend)
+    private Material comboFireSolidMat;
+    private Image comboRingGlow;      // glow behind wheel (FlameRing shader, additive)
+    private Material comboGlowMat;
+    private Image comboRingEdge;      // thin solid line on top of wheel
     private TMP_Text comboCountText;
 
     private void Start()
@@ -289,8 +343,10 @@ public class GameManager : MonoBehaviour
         {
             comboTimer -= Time.deltaTime;
             float fill = Mathf.Clamp01(comboTimer / comboTimeWindow);
-            if (comboRingBase != null) comboRingBase.fillAmount = fill;
-            if (comboRingGlow != null) comboRingGlow.fillAmount = fill;
+            if (comboFireMat != null) comboFireMat.SetFloat("_FillAmount", fill);
+            if (comboFireSolidMat != null) comboFireSolidMat.SetFloat("_FillAmount", fill);
+            if (comboGlowMat != null) comboGlowMat.SetFloat("_FillAmount", fill);
+            if (comboRingEdge != null) comboRingEdge.fillAmount = fill;
             if (comboTimer <= 0f)
                 ResetCombo();
         }
@@ -1232,48 +1288,101 @@ public class GameManager : MonoBehaviour
     {
         Transform wheelParent = letterWheel.transform;
 
-        // Solid base ring (visible against white wheel)
-        if (comboRingBase == null)
-        {
-            var baseGO = new GameObject("ComboRingBase", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-            baseGO.transform.SetParent(wheelParent, false);
-
-            comboRingBase = baseGO.GetComponent<Image>();
-            comboRingBase.sprite = GenerateGlowRingSprite(256, 0.12f);
-            comboRingBase.type = Image.Type.Filled;
-            comboRingBase.fillMethod = Image.FillMethod.Radial360;
-            comboRingBase.fillOrigin = (int)Image.Origin360.Top;
-            comboRingBase.fillClockwise = true;
-            comboRingBase.fillAmount = 0f;
-            comboRingBase.raycastTarget = false;
-
-            baseGO.transform.SetSiblingIndex(2);
-        }
-
-        // Additive glow ring underneath the base
+        // Additive glow ring behind wheel (ambient fire halo)
         if (comboRingGlow == null)
         {
             var glowGO = new GameObject("ComboRingGlow", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             glowGO.transform.SetParent(wheelParent, false);
 
             comboRingGlow = glowGO.GetComponent<Image>();
-            comboRingGlow.sprite = GenerateGlowRingSprite(256, 0.12f);
-            comboRingGlow.type = Image.Type.Filled;
-            comboRingGlow.fillMethod = Image.FillMethod.Radial360;
-            comboRingGlow.fillOrigin = (int)Image.Origin360.Top;
-            comboRingGlow.fillClockwise = true;
-            comboRingGlow.fillAmount = 0f;
+            comboRingGlow.sprite = GenerateGlowRingSprite(256, comboGlowThickness);
+            comboRingGlow.type = Image.Type.Simple;
             comboRingGlow.raycastTarget = false;
 
-            var glowShader = Shader.Find("UI/Glow");
-            if (glowShader != null)
+            var flameShader = Shader.Find("UI/FlameRing");
+            if (flameShader != null)
             {
-                var glowMat = new Material(glowShader);
-                glowMat.SetFloat("_GlowIntensity", 3f);
-                comboRingGlow.material = glowMat;
+                comboGlowMat = new Material(flameShader);
+                comboGlowMat.SetFloat("_FillAmount", 0f);
+                comboGlowMat.SetFloat("_NoiseSpeed", comboGlowNoiseSpeed);
+                comboGlowMat.SetFloat("_NoiseIntensity", comboGlowNoiseIntensity);
+                comboRingGlow.material = comboGlowMat;
             }
 
-            glowGO.transform.SetSiblingIndex(1);
+            glowGO.transform.SetSiblingIndex(0);
+        }
+
+        // Solid fire ring (normal blend — gives body/opacity to the flames)
+        if (comboFireSolid == null)
+        {
+            var solidGO = new GameObject("ComboFireSolid", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            solidGO.transform.SetParent(wheelParent, false);
+
+            comboFireSolid = solidGO.GetComponent<Image>();
+            comboFireSolid.sprite = null;
+            comboFireSolid.type = Image.Type.Simple;
+            comboFireSolid.raycastTarget = false;
+            comboFireSolid.color = Color.white;
+
+            var solidShader = Shader.Find("UI/FireRingSolid");
+            if (solidShader != null)
+            {
+                comboFireSolidMat = new Material(solidShader);
+                comboFireSolidMat.SetFloat("_FillAmount", 0f);
+                comboFireSolidMat.SetFloat("_NoiseSpeed", comboFireNoiseSpeed);
+                comboFireSolidMat.SetFloat("_FlameHeight", comboFireFlameHeight);
+                comboFireSolidMat.SetFloat("_RingRadius", comboFireRingRadius);
+                comboFireSolidMat.SetFloat("_RingWidth", comboFireRingWidth);
+                comboFireSolid.material = comboFireSolidMat;
+            }
+
+            solidGO.transform.SetSiblingIndex(0);
+        }
+
+        // Additive fire ring (glow on top of solid, behind wheel)
+        if (comboFireRing == null)
+        {
+            var fireGO = new GameObject("ComboFireRing", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            fireGO.transform.SetParent(wheelParent, false);
+
+            comboFireRing = fireGO.GetComponent<Image>();
+            comboFireRing.sprite = null;
+            comboFireRing.type = Image.Type.Simple;
+            comboFireRing.raycastTarget = false;
+            comboFireRing.color = Color.white;
+
+            var fireShader = Shader.Find("UI/FireRing");
+            if (fireShader != null)
+            {
+                comboFireMat = new Material(fireShader);
+                comboFireMat.SetFloat("_FillAmount", 0f);
+                comboFireMat.SetFloat("_NoiseSpeed", comboFireNoiseSpeed);
+                comboFireMat.SetFloat("_FlameHeight", comboFireFlameHeight);
+                comboFireMat.SetFloat("_RingRadius", comboFireRingRadius);
+                comboFireMat.SetFloat("_RingWidth", comboFireRingWidth);
+                comboFireRing.material = comboFireMat;
+            }
+
+            fireGO.transform.SetSiblingIndex(0);
+        }
+
+        // Thin solid edge ring on top of wheel (no custom shader, just hard sprite + default UI)
+        if (comboRingEdge == null)
+        {
+            var edgeGO = new GameObject("ComboRingEdge", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            edgeGO.transform.SetParent(wheelParent, false);
+
+            comboRingEdge = edgeGO.GetComponent<Image>();
+            comboRingEdge.sprite = GenerateHardRingSprite(256, comboEdgeThickness);
+            comboRingEdge.type = Image.Type.Filled;
+            comboRingEdge.fillMethod = Image.FillMethod.Radial360;
+            comboRingEdge.fillOrigin = (int)Image.Origin360.Top;
+            comboRingEdge.fillClockwise = true;
+            comboRingEdge.fillAmount = 0f;
+            comboRingEdge.raycastTarget = false;
+
+            // On top of wheel — sibling order is all that's needed
+            edgeGO.transform.SetAsLastSibling();
         }
 
         if (comboCountText == null)
@@ -1282,26 +1391,33 @@ public class GameManager : MonoBehaviour
             textGO.transform.SetParent(wheelParent, false);
 
             comboCountText = textGO.AddComponent<TextMeshProUGUI>();
-            comboCountText.fontSize = 40f;
+            comboCountText.fontSize = comboTextFontSize;
             comboCountText.fontStyle = FontStyles.Bold;
             comboCountText.alignment = TextAlignmentOptions.Center;
             comboCountText.color = Color.white;
-            comboCountText.outlineWidth = 0.3f;
-            comboCountText.outlineColor = new Color32(0, 0, 0, 200);
+            comboCountText.outlineWidth = comboTextOutlineWidth;
+            comboCountText.outlineColor = new Color32(0, 0, 0, 255);
             comboCountText.raycastTarget = false;
             comboCountText.text = "";
         }
 
-        // Size both rings well beyond the wheel
-        float ringSize = letterWheel.WheelBackgroundSize + 60f;
-        comboRingBase.rectTransform.sizeDelta = new Vector2(ringSize, ringSize);
-        comboRingBase.rectTransform.anchoredPosition = Vector2.zero;
-        comboRingGlow.rectTransform.sizeDelta = new Vector2(ringSize, ringSize);
+        // Size rings
+        float fireSize = letterWheel.WheelBackgroundSize + comboFireSizeOffset;
+        comboFireRing.rectTransform.sizeDelta = new Vector2(fireSize, fireSize);
+        comboFireRing.rectTransform.anchoredPosition = Vector2.zero;
+        float fireSolidSize = letterWheel.WheelBackgroundSize + comboFireSolidSizeOffset;
+        comboFireSolid.rectTransform.sizeDelta = new Vector2(fireSolidSize, fireSolidSize);
+        comboFireSolid.rectTransform.anchoredPosition = Vector2.zero;
+        float glowSize = letterWheel.WheelBackgroundSize + comboGlowSizeOffset;
+        comboRingGlow.rectTransform.sizeDelta = new Vector2(glowSize, glowSize);
         comboRingGlow.rectTransform.anchoredPosition = Vector2.zero;
+        float edgeSize = letterWheel.WheelBackgroundSize + comboEdgeSizeOffset;
+        comboRingEdge.rectTransform.sizeDelta = new Vector2(edgeSize, edgeSize);
+        comboRingEdge.rectTransform.anchoredPosition = Vector2.zero;
 
         // Position text above the wheel
-        float textY = letterWheel.WheelBackgroundSize * 0.5f + 25f;
-        comboCountText.rectTransform.sizeDelta = new Vector2(120f, 50f);
+        float textY = letterWheel.WheelBackgroundSize * 0.5f + comboTextYOffset;
+        comboCountText.rectTransform.sizeDelta = new Vector2(200f, 70f);
         comboCountText.rectTransform.anchoredPosition = new Vector2(0f, textY);
 
         ResetCombo();
@@ -1313,18 +1429,33 @@ public class GameManager : MonoBehaviour
         comboTimer = comboTimeWindow;
 
         {
-            int colorIdx = Mathf.Clamp(comboCount - 1, 0, comboColors.Length - 1);
-            Color ringColor = comboColors[colorIdx];
-            if (comboRingBase != null)
+            if (comboFireRing != null)
             {
-                comboRingBase.fillAmount = 1f;
-                // Base is always fully opaque
-                comboRingBase.color = new Color(ringColor.r, ringColor.g, ringColor.b, 1f);
+                comboFireRing.color = comboFireColor;
+                if (comboFireMat != null)
+                    comboFireMat.SetFloat("_FillAmount", 1f);
+            }
+            if (comboFireSolid != null)
+            {
+                comboFireSolid.color = comboFireSolidColor;
+                if (comboFireSolidMat != null)
+                    comboFireSolidMat.SetFloat("_FillAmount", 1f);
             }
             if (comboRingGlow != null)
             {
-                comboRingGlow.fillAmount = 1f;
-                comboRingGlow.color = ringColor;
+                Color glowC = comboGlowColor;
+                glowC.a = comboGlowAlpha;
+                comboRingGlow.color = glowC;
+                if (comboGlowMat != null)
+                {
+                    comboGlowMat.SetFloat("_FillAmount", 1f);
+                    comboGlowMat.SetColor("_Color", comboGlowColor);
+                }
+            }
+            if (comboRingEdge != null)
+            {
+                comboRingEdge.fillAmount = 1f;
+                comboRingEdge.color = comboEdgeColor;
             }
         }
 
@@ -1352,8 +1483,10 @@ public class GameManager : MonoBehaviour
     {
         comboCount = 0;
         comboTimer = 0f;
-        if (comboRingBase != null) comboRingBase.fillAmount = 0f;
-        if (comboRingGlow != null) comboRingGlow.fillAmount = 0f;
+        if (comboFireMat != null) comboFireMat.SetFloat("_FillAmount", -0.1f);
+        if (comboFireSolidMat != null) comboFireSolidMat.SetFloat("_FillAmount", -0.1f);
+        if (comboGlowMat != null) comboGlowMat.SetFloat("_FillAmount", -0.1f);
+        if (comboRingEdge != null) comboRingEdge.fillAmount = 0f;
         if (comboCountText != null)
             comboCountText.text = "";
     }
@@ -1379,7 +1512,7 @@ public class GameManager : MonoBehaviour
         if (comboCountText != null)
         {
             comboCountText.text = "SURGE!";
-            comboCountText.fontSize = 48f;
+            comboCountText.fontSize = comboTextFontSize * 1.15f;
             comboCountText.color = new Color(0.5f, 0.3f, 1f, 1f);
             StartCoroutine(TweenHelper.PunchScale(comboCountText.transform, Vector3.one * 0.5f, 0.4f));
         }
@@ -1394,7 +1527,7 @@ public class GameManager : MonoBehaviour
         // Reset combo text after surge VFX starts
         yield return new WaitForSeconds(0.5f);
         if (comboCountText != null)
-            comboCountText.fontSize = 40f;
+            comboCountText.fontSize = comboTextFontSize;
         ResetCombo();
     }
 
@@ -1410,6 +1543,12 @@ public class GameManager : MonoBehaviour
         float ringCenter = outerR - ringWidth * 0.5f;
         float halfW = ringWidth * 0.5f;
 
+        // Perlin noise settings for flame-like edges
+        float noiseFreq1 = 4f;   // primary flame frequency
+        float noiseFreq2 = 8f;   // detail frequency
+        float noiseAmp1 = 0.35f; // primary amplitude (fraction of halfW)
+        float noiseAmp2 = 0.15f; // detail amplitude
+
         for (int y = 0; y < size; y++)
         {
             for (int x = 0; x < size; x++)
@@ -1418,10 +1557,52 @@ public class GameManager : MonoBehaviour
                 float dy = y - center;
                 float dist = Mathf.Sqrt(dx * dx + dy * dy);
 
-                // Soft gaussian-like falloff from ring centerline
-                float d = Mathf.Abs(dist - ringCenter) / halfW;
+                // Angle for noise sampling (0 to 1 around the circle)
+                float angle = (Mathf.Atan2(dy, dx) / (2f * Mathf.PI) + 0.5f);
+
+                // Multi-octave perlin noise modulates the ring width
+                float n1 = Mathf.PerlinNoise(angle * noiseFreq1 + 0.3f, 0.5f) - 0.5f;
+                float n2 = Mathf.PerlinNoise(angle * noiseFreq2 + 7.1f, 3.2f) - 0.5f;
+                float noiseOffset = (n1 * noiseAmp1 + n2 * noiseAmp2) * halfW * 2f;
+
+                // Shift the ring center outward by noise (flame tongues)
+                float localCenter = ringCenter + noiseOffset;
+
+                float d = Mathf.Abs(dist - localCenter) / halfW;
                 float alpha = Mathf.Clamp01(1f - d);
-                alpha *= alpha; // smooth quadratic falloff for soft glow
+                alpha *= alpha; // quadratic falloff
+
+                tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
+            }
+        }
+
+        tex.Apply();
+        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
+    }
+
+    /// <summary>Solid ring sprite with hard edges (1px AA). No noise, no gradient, alpha=1 everywhere inside.</summary>
+    private static Sprite GenerateHardRingSprite(int size, float thicknessFraction)
+    {
+        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+
+        float center = size * 0.5f;
+        float outerR = size * 0.49f;
+        float innerR = outerR - thicknessFraction * size;
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float dx = x - center;
+                float dy = y - center;
+                float dist = Mathf.Sqrt(dx * dx + dy * dy);
+
+                float soft = 3f; // soft edge falloff in pixels
+                float outerEdge = Mathf.Clamp01((outerR - dist) / soft + 0.5f);
+                float innerEdge = Mathf.Clamp01((dist - innerR) / soft + 0.5f);
+                float alpha = outerEdge * innerEdge;
 
                 tex.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
             }
