@@ -134,13 +134,13 @@ public class GameManager : MonoBehaviour
     [Tooltip("Extra pixels beyond wheel background size (make large enough so flames don't clip)")]
     [SerializeField] private float comboFireSizeOffset = 200f;
     [Tooltip("Speed of the flame noise animation")]
-    [SerializeField] private float comboFireNoiseSpeed = 6.0f;
+    [SerializeField] private float comboFireNoiseSpeed = 10.0f;
     [Tooltip("How far flame tongues extend outward (UV space)")]
-    [SerializeField] private float comboFireFlameHeight = 0.12f;
+    [SerializeField] private float comboFireFlameHeight = 0.18f;
     [Tooltip("Center radius of the ring in UV space (0.5 = edge of texture)")]
     [SerializeField] private float comboFireRingRadius = 0.30f;
     [Tooltip("Base width of the ring in UV space")]
-    [SerializeField] private float comboFireRingWidth = 0.05f;
+    [SerializeField] private float comboFireRingWidth = 0.07f;
     [Tooltip("Tint color for the additive fire layer")]
     [SerializeField] private Color comboFireColor = new Color(0.2f, 0.6f, 1f, 1f);
 

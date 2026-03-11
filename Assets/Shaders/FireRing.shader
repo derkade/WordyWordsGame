@@ -117,11 +117,12 @@ Shader "UI/FireRing"
                 float sa = sin(angle);
                 float t = _Time.y;
 
-                // Three noise octaves — large swooshes + medium detail + fine flicker
+                // Four noise octaves — large swooshes + medium detail + fine flicker + micro turbulence
                 float n1 = vnoise(float2(ca * 2.5 + t * _NoiseSpeed * 0.4, sa * 2.5 + t * 0.5));
                 float n2 = vnoise(float2(ca * 5.0 - t * _NoiseSpeed * 0.6, sa * 5.0 + t * 0.7 + 5.0));
                 float n3 = vnoise(float2(ca * 10.0 + t * _NoiseSpeed * 1.1, sa * 10.0 - t * 0.3 + 10.0));
-                float noise = n1 * 0.5 + n2 * 0.3 + n3 * 0.2;
+                float n4 = vnoise(float2(ca * 20.0 + t * _NoiseSpeed * 1.8, sa * 20.0 + t * 1.2 + 20.0));
+                float noise = n1 * 0.35 + n2 * 0.3 + n3 * 0.2 + n4 * 0.15;
 
                 // Flame displacement — tongues extend outward from ring
                 float flameDisp = noise * _FlameHeight;
