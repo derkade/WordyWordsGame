@@ -35,6 +35,8 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float comboFuseSpeedVariance = 0.4f;
     [Tooltip("Lifetime randomization (0 = uniform, 1 = full range)")]
     [SerializeField] private float comboFuseLifetimeVariance = 0.4f;
+    [Tooltip("Pixel offset to nudge the fuse spark emission point (X, Y)")]
+    [SerializeField] private Vector2 comboFuseOffset = Vector2.zero;
 
     [Header("Level Data")]
     [Tooltip("Generate random puzzles instead of using pre-baked levels")]
@@ -1625,7 +1627,7 @@ public class GameManager : MonoBehaviour
 
         RectTransform rt = GetOrCreateFuseSpark();
         rt.gameObject.SetActive(true);
-        rt.anchoredPosition = new Vector2(px, py);
+        rt.anchoredPosition = new Vector2(px, py) + comboFuseOffset;
         rt.sizeDelta = new Vector2(comboFuseSize, comboFuseSize);
         rt.localScale = Vector3.one;
 
