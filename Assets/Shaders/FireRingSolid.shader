@@ -126,6 +126,9 @@ Shader "UI/FireRingSolid"
                 float n4 = vnoise(float2(ca * 20.0 + t * _NoiseSpeed * 1.8, sa * 20.0 + t * 1.2 + 20.0));
                 float noise = n1 * 0.35 + n2 * 0.3 + n3 * 0.2 + n4 * 0.15;
 
+                // Raise floor so valleys don't dip behind the wheel (0 = full range, 1 = flat)
+                noise = lerp(0.4, 1.0, noise);
+
                 // Flame displacement — tongues extend outward from ring
                 float flameDisp = noise * _FlameHeight;
 
@@ -139,10 +142,8 @@ Shader "UI/FireRingSolid"
                 float outerFade = saturate((outerEdge - dist) / outerSoftness);
                 float ringAlpha = innerFade * outerFade;
 
-                // Boost alpha in the core region for solidity
-                float coreDist = abs(dist - _RingRadius) / max(halfW, 0.001);
-                float coreBoost = saturate(1.0 - coreDist);
-                ringAlpha = max(ringAlpha, coreBoost * innerFade);
+                // Fully opaque everywhere the ring or flames exist
+                ringAlpha = saturate(ringAlpha * 50.0);
 
                 // Fire color gradient derived from combo color
                 // Inner (core): bright, tending toward white
@@ -160,10 +161,12 @@ Shader "UI/FireRingSolid"
                 col.rgb = fireColor;
                 col.a = ringAlpha * i.color.a;
 
-                // Radial fill from top, clockwise — with noisy edge for organic burn look
-                float fillAngle = frac(atan2(c.x, c.y) / 6.28318530);
+                // Radial fill from top, counter-clockwise — with noisy edge for organic burn look
+                float fillAngle = frac(-atan2(c.x, c.y) / 6.28318530);
                 float fillNoise = (vnoise(float2(fillAngle * 8.0, t * 2.0)) - 0.5) * 0.04;
-                col.a *= saturate((_FillAmount + fillNoise - fillAngle) * 40.0);
+                float movingEdge = saturate((_FillAmount + fillNoise - fillAngle) * 40.0);
+                float startFade = smoothstep(0.0, 0.02, fillAngle);
+                col.a *= movingEdge * startFade;
 
                 // HDR boost for bloom pickup
                 col.rgb *= _GlowIntensity;

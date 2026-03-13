@@ -28,6 +28,8 @@ public class ParallaxBackground : MonoBehaviour
         public float ovalRadiusY = 30f;
         [Tooltip("OvalDrift: tile in a grid (small repeating textures). Uncheck for single large images like frames.")]
         public bool ovalTileGrid = true;
+        [Tooltip("Shift Bottom/Top anchor upward (fraction of screen height). 0.1 = push 10% up.")]
+        public float verticalOffset = 0f;
     }
 
     [System.Serializable]
@@ -39,6 +41,8 @@ public class ParallaxBackground : MonoBehaviour
         [Tooltip("Revealed grid cell tint for this theme (keep dark/muted)")]
         public Color revealedCellColor = new Color(0.3f, 0.3f, 0.5f, 1f);
         public ParallaxLayer[] layers;
+        [Tooltip("Optional particle prefab (e.g. snow). Instantiated in world space above the camera.")]
+        public GameObject particlePrefab;
     }
 
     [Header("Themes (randomly selected each level)")]
@@ -80,9 +84,17 @@ public class ParallaxBackground : MonoBehaviour
     private float lastParentHeight;
     private float sharedOvalAngle;
     private float scrollDirection;  // +1 or -1, randomized each level
+    private GameObject[] activeParticleInstances;
 
     private void Awake()
     {
+        // Render parallax background behind the main UI canvas
+        var subCanvas = gameObject.GetComponent<Canvas>();
+        if (subCanvas == null)
+            subCanvas = gameObject.AddComponent<Canvas>();
+        subCanvas.overrideSorting = true;
+        subCanvas.sortingOrder = -10;
+
         if (themes != null && themes.Length > 0)
             ApplyRandomTheme();
         else
@@ -232,12 +244,12 @@ public class ParallaxBackground : MonoBehaviour
                         containerRT.anchorMax = Vector2.one;
                         break;
                     case VerticalAnchor.Bottom:
-                        containerRT.anchorMin = new Vector2(0f, 0f);
-                        containerRT.anchorMax = new Vector2(1f, heightRatio);
+                        containerRT.anchorMin = new Vector2(0f, layer.verticalOffset);
+                        containerRT.anchorMax = new Vector2(1f, heightRatio + layer.verticalOffset);
                         break;
                     case VerticalAnchor.Top:
-                        containerRT.anchorMin = new Vector2(0f, 1f - heightRatio);
-                        containerRT.anchorMax = new Vector2(1f, 1f);
+                        containerRT.anchorMin = new Vector2(0f, 1f - heightRatio + layer.verticalOffset);
+                        containerRT.anchorMax = new Vector2(1f, 1f + layer.verticalOffset);
                         break;
                 }
                 containerRT.offsetMin = Vector2.zero;
@@ -475,6 +487,7 @@ public class ParallaxBackground : MonoBehaviour
 
         lastThemeIndex = index;
         SetLayers(themes[index].layers);
+        ApplyThemeParticles(themes[index]);
     }
 
     public void ApplyTheme(int index)
@@ -482,6 +495,7 @@ public class ParallaxBackground : MonoBehaviour
         if (themes == null || index < 0 || index >= themes.Length) return;
         lastThemeIndex = index;
         SetLayers(themes[index].layers);
+        ApplyThemeParticles(themes[index]);
     }
 
     public void SetLayers(ParallaxLayer[] newLayers)
@@ -493,5 +507,86 @@ public class ParallaxBackground : MonoBehaviour
     public void SetScrollEnabled(bool enabled)
     {
         scrollEnabled = enabled;
+    }
+
+    private void ApplyThemeParticles(ParallaxTheme theme)
+    {
+        // Destroy previous particle instances
+        if (activeParticleInstances != null)
+        {
+            for (int i = 0; i < activeParticleInstances.Length; i++)
+                if (activeParticleInstances[i] != null)
+                    Destroy(activeParticleInstances[i]);
+            activeParticleInstances = null;
+        }
+
+        if (theme.particlePrefab == null) return;
+
+        // Find the camera that renders the canvas
+        var canvas = GetComponentInParent<Canvas>();
+        Camera cam = canvas != null ? canvas.worldCamera : Camera.main;
+        if (cam == null) return;
+
+        float halfH = cam.orthographicSize;
+
+        // 3 depth layers: BG (small/slow), MG (medium), FG (large/fast)
+        // sortingOrder between parallax BG (-10) and main UI (0)
+        var layerConfigs = new (string name, int sortingOrder, float scale, float rateMultiplier)[]
+        {
+            ("ThemeParticles_BG", -8, 0.5f, 2.5f),
+            ("ThemeParticles_MG", -5, 0.75f, 1.6f),
+            ("ThemeParticles_FG", -2, 1.0f, 1.0f),
+        };
+
+        activeParticleInstances = new GameObject[layerConfigs.Length];
+        for (int i = 0; i < layerConfigs.Length; i++)
+        {
+            var cfg = layerConfigs[i];
+            var go = Instantiate(theme.particlePrefab, cam.transform);
+            go.name = cfg.name;
+            go.transform.localPosition = new Vector3(0f, halfH + 1f, 5f);
+            go.transform.localRotation = Quaternion.identity;
+
+            var ps = go.GetComponent<ParticleSystem>();
+            if (ps != null)
+            {
+                var main = ps.main;
+                // Scale particle size by depth layer
+                main.startSize = new ParticleSystem.MinMaxCurve(
+                    main.startSize.constantMin * cfg.scale,
+                    main.startSize.constantMax * cfg.scale);
+                // Widen emitter to cover screen + horizontal drift margin
+                float screenWidth = cam.orthographicSize * cam.aspect * 2f;
+                float emitterWidth = screenWidth + 60f;
+                var shape = ps.shape;
+                float originalWidth = shape.enabled ? shape.scale.x : 20f;
+                if (shape.enabled)
+                {
+                    var s = shape.scale;
+                    s.x = emitterWidth;
+                    shape.scale = s;
+                }
+                // Scale emission rate: compensate for wider emitter + density multiplier
+                float widthCompensation = emitterWidth / originalWidth;
+                var emission = ps.emission;
+                emission.rateOverTime = emission.rateOverTime.constant * cfg.rateMultiplier * widthCompensation;
+                // Flip horizontal drift to match parallax scroll direction
+                go.transform.localScale = new Vector3(scrollDirection, 1f, 1f);
+            }
+
+            var renderer = go.GetComponent<ParticleSystemRenderer>();
+            if (renderer != null)
+                renderer.sortingOrder = cfg.sortingOrder;
+
+            activeParticleInstances[i] = go;
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (activeParticleInstances != null)
+            for (int i = 0; i < activeParticleInstances.Length; i++)
+                if (activeParticleInstances[i] != null)
+                    Destroy(activeParticleInstances[i]);
     }
 }

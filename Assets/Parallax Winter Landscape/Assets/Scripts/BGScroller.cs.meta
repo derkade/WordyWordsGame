@@ -1,0 +1,20 @@
+fileFormatVersion: 2
+guid: 21a5fcb11dc350848ba2b01e0a5d6450
+timeCreated: 1524856489
+licenseType: Store
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 252906
+  packageName: Winter Parallax Landscape
+  packageVersion: 1.0
+  assetPath: Assets/Parallax Winter Landscape/Assets/Scripts/BGScroller.cs
+  uploadId: 578480

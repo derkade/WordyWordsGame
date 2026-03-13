@@ -362,6 +362,10 @@ public class CrosswordGrid : MonoBehaviour
             coinText.raycastTarget = false;
 
             cell.coinIcon = coinGO;
+
+            // In cheat mode, keep letters on top of coins
+            if (cheatShowLetters)
+                cell.letterText.transform.SetAsLastSibling();
         }
     }
 

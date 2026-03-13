@@ -2673,6 +2673,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: d61d5891b4beb8b4e9e2296da6672e68, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.003
@@ -2682,6 +2683,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: 26d6595e7ac747e4eac86dde13d3dc00, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.005
@@ -2691,6 +2693,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: a3b974fba1a5fa94f9685dfccfef4b17, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.008
@@ -2700,6 +2703,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: 660f704e370aefa468adc0e4aebbf89f, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.012
@@ -2709,6 +2713,8 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
+    particlePrefab: {fileID: 0}
   - name: Desert
     enabled: 0
     revealedCellColor: {r: 0.4, g: 0.3, b: 0.18, a: 1}
@@ -2722,6 +2728,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: eb417a89dce8d3447b0215b7326dd3f6, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.003
@@ -2731,6 +2738,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: f656d319c943a1b4e8c22a7fdc3d092e, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.005
@@ -2740,6 +2748,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: ef2300dd341bd394f818de0b11d12cd4, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.008
@@ -2749,6 +2758,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: e33c1bfeedd9a4042b67eba94500d9d1, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.012
@@ -2758,6 +2768,8 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
+    particlePrefab: {fileID: 0}
   - name: IceAge
     enabled: 0
     revealedCellColor: {r: 0.25, g: 0.32, b: 0.42, a: 1}
@@ -2771,6 +2783,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: e71d9948d4d535740be31724651bd07a, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.003
@@ -2780,6 +2793,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: e0dda9cccec32d543be5b9cc932ef20b, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.005
@@ -2789,6 +2803,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: 9b8e709e716a1ed4da1cf5eebeef263f, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.008
@@ -2798,6 +2813,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: 748e40d7830847b4785ad4d6a2faa35f, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.012
@@ -2807,6 +2823,8 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
+    particlePrefab: {fileID: 0}
   - name: Jungle2
     enabled: 0
     revealedCellColor: {r: 0.22, g: 0.35, b: 0.2, a: 1}
@@ -2820,6 +2838,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: 13d98b56a273c0b4791a02b9e03fb20b, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.003
@@ -2829,6 +2848,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: d94bd08804ab0df47a5d5b557d3e4c79, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.005
@@ -2838,6 +2858,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: a3b974fba1a5fa94f9685dfccfef4b17, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.008
@@ -2847,6 +2868,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: 660f704e370aefa468adc0e4aebbf89f, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.012
@@ -2856,6 +2878,8 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
+    particlePrefab: {fileID: 0}
   - name: Desert2
     enabled: 0
     revealedCellColor: {r: 0.4, g: 0.3, b: 0.18, a: 1}
@@ -2869,6 +2893,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: 21ac49e605e7d7147ba19f8d214102da, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.003
@@ -2878,6 +2903,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: 8cb7ea855bf76d84ea6c93833bd38434, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.005
@@ -2887,6 +2913,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: ef2300dd341bd394f818de0b11d12cd4, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.008
@@ -2896,6 +2923,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: e33c1bfeedd9a4042b67eba94500d9d1, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.012
@@ -2905,6 +2933,8 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
+    particlePrefab: {fileID: 0}
   - name: IceAge2
     enabled: 0
     revealedCellColor: {r: 0.25, g: 0.32, b: 0.42, a: 1}
@@ -2918,6 +2948,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: 03bad05ac577c2c4aad9f02820037a74, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.003
@@ -2927,6 +2958,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: b85e50f33bb4e54459f2b6640da45905, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.005
@@ -2936,6 +2968,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: 9b8e709e716a1ed4da1cf5eebeef263f, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.008
@@ -2945,6 +2978,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: 748e40d7830847b4785ad4d6a2faa35f, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.012
@@ -2954,6 +2988,8 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
+    particlePrefab: {fileID: 0}
   - name: Forest
     enabled: 1
     revealedCellColor: {r: 0.2, g: 0.3, b: 0.18, a: 1}
@@ -2967,6 +3003,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: 2ed9ed94f3900e247a8940f377a28501, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.002
@@ -2976,6 +3013,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: da5365855841b014780172a6e79459d4, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.003
@@ -2985,6 +3023,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: e7f5574f06af30d47a06a0a34de718e6, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.004
@@ -2994,6 +3033,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: 5e08f761cba79d342877af3687222779, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.006
@@ -3003,6 +3043,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: ffe0154c19aa6a545bd196cb72328120, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.005
@@ -3012,6 +3053,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: b70e295ec455c9b45a43b590fca50896, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.008
@@ -3021,6 +3063,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: 73dc67aeeb0895a49a3783061764a369, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.007
@@ -3030,6 +3073,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: 86e816ff208329c41b47aa62396b2989, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.012
@@ -3039,6 +3083,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: bb5e30384e5eb8e4b94539a0e9fbc2fd, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.001
@@ -3048,6 +3093,8 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
+    particlePrefab: {fileID: 0}
   - name: Underwater
     enabled: 1
     revealedCellColor: {r: 0.18, g: 0.28, b: 0.38, a: 1}
@@ -3061,6 +3108,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: 74e366790bf86074eb256e1bfce87af0, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.003
@@ -3070,6 +3118,7 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: b63889230ba82184ab59cdce2144f736, type: 3}
       alternateSprite: {fileID: 21300000, guid: 4e238b460421c42468ec02722ce94434, type: 3}
       scrollSpeed: 0.008
@@ -3079,6 +3128,8 @@ MonoBehaviour:
       ovalRadiusX: 50
       ovalRadiusY: 30
       ovalTileGrid: 1
+      verticalOffset: 0
+    particlePrefab: {fileID: 0}
   - name: UnderwaterDiving
     enabled: 0
     revealedCellColor: {r: 0.15, g: 0.25, b: 0.3, a: 1}
@@ -3092,6 +3143,7 @@ MonoBehaviour:
       ovalRadiusX: 140
       ovalRadiusY: 90
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: c995dde278544814688c3173a11121ff, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 0.6
@@ -3101,6 +3153,7 @@ MonoBehaviour:
       ovalRadiusX: 140
       ovalRadiusY: 90
       ovalTileGrid: 1
+      verticalOffset: 0
     - sprite: {fileID: 21300000, guid: db6ba79873fd7d4489817a647b4de5bb, type: 3}
       alternateSprite: {fileID: 0}
       scrollSpeed: 1
@@ -3110,6 +3163,93 @@ MonoBehaviour:
       ovalRadiusX: 140
       ovalRadiusY: 90
       ovalTileGrid: 0
+      verticalOffset: 0
+    particlePrefab: {fileID: 0}
+  - name: Winter
+    enabled: 1
+    revealedCellColor: {r: 0.25, g: 0.3, b: 0.4, a: 1}
+    layers:
+    - sprite: {fileID: 21300000, guid: 3a2109b8856b7ae49823a8db9dde6dd0, type: 3}
+      alternateSprite: {fileID: 0}
+      scrollSpeed: 0
+      alpha: 1
+      verticalAnchor: 0
+      scrollMode: 0
+      ovalRadiusX: 50
+      ovalRadiusY: 30
+      ovalTileGrid: 1
+      verticalOffset: 0
+    - sprite: {fileID: 21300000, guid: c8ba8e71a060b024d8fed494e4bfb890, type: 3}
+      alternateSprite: {fileID: 0}
+      scrollSpeed: 0.002
+      alpha: 0.8
+      verticalAnchor: 2
+      scrollMode: 0
+      ovalRadiusX: 50
+      ovalRadiusY: 30
+      ovalTileGrid: 1
+      verticalOffset: 0
+    - sprite: {fileID: 21300000, guid: 496adbe2962ce7a4ca1f3e907ab5bcce, type: 3}
+      alternateSprite: {fileID: 0}
+      scrollSpeed: 0.004
+      alpha: 1
+      verticalAnchor: 1
+      scrollMode: 0
+      ovalRadiusX: 50
+      ovalRadiusY: 30
+      ovalTileGrid: 1
+      verticalOffset: 0.15
+    - sprite: {fileID: 21300000, guid: 72fcf50aa0e011c449bc705230e89235, type: 3}
+      alternateSprite: {fileID: 0}
+      scrollSpeed: 0.006
+      alpha: 1
+      verticalAnchor: 1
+      scrollMode: 0
+      ovalRadiusX: 50
+      ovalRadiusY: 30
+      ovalTileGrid: 1
+      verticalOffset: 0.12
+    - sprite: {fileID: 21300000, guid: f65b40c6dfeeb9f4a8850dc6896d466b, type: 3}
+      alternateSprite: {fileID: 0}
+      scrollSpeed: 0.01
+      alpha: 1
+      verticalAnchor: 1
+      scrollMode: 0
+      ovalRadiusX: 50
+      ovalRadiusY: 30
+      ovalTileGrid: 1
+      verticalOffset: 0.08
+    - sprite: {fileID: 21300000, guid: a961c72667f544e48b1808945e7e9f00, type: 3}
+      alternateSprite: {fileID: 0}
+      scrollSpeed: 0.014
+      alpha: 1
+      verticalAnchor: 1
+      scrollMode: 0
+      ovalRadiusX: 50
+      ovalRadiusY: 30
+      ovalTileGrid: 1
+      verticalOffset: 0.05
+    - sprite: {fileID: 21300000, guid: 66bfb829ae6c6484781e365969022542, type: 3}
+      alternateSprite: {fileID: 0}
+      scrollSpeed: 0.019
+      alpha: 1
+      verticalAnchor: 3
+      scrollMode: 0
+      ovalRadiusX: 50
+      ovalRadiusY: 30
+      ovalTileGrid: 1
+      verticalOffset: 0
+    - sprite: {fileID: 21300000, guid: 3b73e2df12e0d914296f4ea98cbe89d5, type: 3}
+      alternateSprite: {fileID: 0}
+      scrollSpeed: 0.024
+      alpha: 1
+      verticalAnchor: 3
+      scrollMode: 0
+      ovalRadiusX: 50
+      ovalRadiusY: 30
+      ovalTileGrid: 1
+      verticalOffset: 0
+    particlePrefab: {fileID: 5766867449235804356, guid: b19bb8829ae04a943b87aaadfde90050, type: 3}
   layers:
   - sprite: {fileID: 21300000, guid: 0cc27675fe3307345bc8f5c334837e9f, type: 3}
     alternateSprite: {fileID: 0}
@@ -3120,6 +3260,7 @@ MonoBehaviour:
     ovalRadiusX: 50
     ovalRadiusY: 30
     ovalTileGrid: 1
+    verticalOffset: 0
   - sprite: {fileID: 21300000, guid: d61d5891b4beb8b4e9e2296da6672e68, type: 3}
     alternateSprite: {fileID: 0}
     scrollSpeed: 0.003
@@ -3129,6 +3270,7 @@ MonoBehaviour:
     ovalRadiusX: 50
     ovalRadiusY: 30
     ovalTileGrid: 1
+    verticalOffset: 0
   - sprite: {fileID: 21300000, guid: 26d6595e7ac747e4eac86dde13d3dc00, type: 3}
     alternateSprite: {fileID: 0}
     scrollSpeed: 0.005
@@ -3138,6 +3280,7 @@ MonoBehaviour:
     ovalRadiusX: 50
     ovalRadiusY: 30
     ovalTileGrid: 1
+    verticalOffset: 0
   - sprite: {fileID: 21300000, guid: a3b974fba1a5fa94f9685dfccfef4b17, type: 3}
     alternateSprite: {fileID: 0}
     scrollSpeed: 0.01
@@ -3147,6 +3290,7 @@ MonoBehaviour:
     ovalRadiusX: 50
     ovalRadiusY: 30
     ovalTileGrid: 1
+    verticalOffset: 0
   - sprite: {fileID: 21300000, guid: 660f704e370aefa468adc0e4aebbf89f, type: 3}
     alternateSprite: {fileID: 0}
     scrollSpeed: 0.02
@@ -3156,6 +3300,7 @@ MonoBehaviour:
     ovalRadiusX: 50
     ovalRadiusY: 30
     ovalTileGrid: 1
+    verticalOffset: 0
   globalSpeedMultiplier: 2.5
   scrollEnabled: 1
   referenceHeight: 1080
@@ -3710,10 +3855,10 @@ MonoBehaviour:
   m_fontAsset: {fileID: 11400000, guid: de20256c040238d4583a9d0e5c81e975, type: 2}
   m_sharedMaterial: {fileID: 1476142896}
   m_fontSharedMaterials:
-  - {fileID: 2030551345}
+  - {fileID: 1476142896}
   m_fontMaterial: {fileID: 1476142896}
   m_fontMaterials:
-  - {fileID: 2030551345}
+  - {fileID: 1476142896}
   m_fontColor32:
     serializedVersion: 2
     rgba: 4278245119
@@ -4275,74 +4420,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 8}
   m_SizeDelta: {x: 0, y: 60}
   m_Pivot: {x: 0.5, y: 0}
---- !u!21 &1022131559
-Material:
-  serializedVersion: 8
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: LiberationSans SDF Material (Instance)
-  m_Shader: {fileID: 4800000, guid: fe393ace9b354375a9cb14cdbbc28be4, type: 3}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords:
-  - OUTLINE_ON
-  m_InvalidKeywords: []
-  m_LightmapFlags: 1
-  m_EnableInstancingVariants: 0
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
-  m_LockedProperties: 
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs:
-    - _MainTex:
-        m_Texture: {fileID: 28684132378477856, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    m_Ints: []
-    m_Floats:
-    - _ColorMask: 15
-    - _CullMode: 0
-    - _FaceDilate: 0
-    - _GradientScale: 10
-    - _MaskSoftnessX: 0
-    - _MaskSoftnessY: 0
-    - _OutlineSoftness: 0
-    - _OutlineWidth: 0.25
-    - _PerspectiveFilter: 0.875
-    - _ScaleRatioA: 0.9
-    - _ScaleRatioB: 1
-    - _ScaleRatioC: 0.73125
-    - _ScaleX: 1
-    - _ScaleY: 1
-    - _ShaderFlags: 0
-    - _Sharpness: 0
-    - _Stencil: 0
-    - _StencilComp: 8
-    - _StencilOp: 0
-    - _StencilReadMask: 255
-    - _StencilWriteMask: 255
-    - _TextureHeight: 1024
-    - _TextureWidth: 1024
-    - _UnderlayDilate: 0
-    - _UnderlayOffsetX: 0
-    - _UnderlayOffsetY: 0
-    - _UnderlaySoftness: 0
-    - _VertexOffsetX: 0
-    - _VertexOffsetY: 0
-    - _WeightBold: 0.75
-    - _WeightNormal: 0
-    m_Colors:
-    - _ClipRect: {r: -32767, g: -32767, b: 32767, a: 32767}
-    - _FaceColor: {r: 1, g: 1, b: 1, a: 1}
-    - _OutlineColor: {r: 0, g: 0, b: 0, a: 1}
-    - _UnderlayColor: {r: 0, g: 0, b: 0, a: 0.5}
-  m_BuildTextureStacks: []
-  m_AllowLocking: 1
 --- !u!21 &1065488741
 Material:
   serializedVersion: 8
@@ -5438,14 +5515,16 @@ MonoBehaviour:
   comboFuseSpeed: 500
   comboFuseLifetime: 0.7
   comboFuseSpread: 90
-  comboFuseGravity: 800
-  comboFuseDrag: 1
+  comboFuseGravity: 4500
+  comboFuseDrag: 0
   comboFuseEndScale: 0.1
-  comboFuseCoreColor: {r: 1, g: 1, b: 1, a: 1}
-  comboFuseEdgeColor: {r: 0.3, g: 0.6, b: 1, a: 1}
-  comboFuseGlowIntensity: 10
-  comboFuseSpeedVariance: 0.5
+  comboFuseCoreColor: {r: 0.5019608, g: 1, b: 1, a: 1}
+  comboFuseEdgeColor: {r: 0, g: 0, b: 1, a: 1}
+  comboFuseGlowIntensity: 2
+  comboFuseSpeedVariance: 0
   comboFuseLifetimeVariance: 0.5
+  comboFuseRadialOffset: -7
+  comboFuseAngularOffset: 0
   useRandomLevels: 1
   levels:
   - {fileID: 11400000, guid: d643b91f756832547bd6bccabf78d652, type: 2}
@@ -5496,7 +5575,6 @@ MonoBehaviour:
   scatterbombCost: 200
   scatterbombCount: 5
   comboTimeWindow: 8
-  maxComboLevel: 5
   comboColors:
   - {r: 0.2, g: 0.5, b: 1, a: 0.4}
   - {r: 0.2, g: 0.6, b: 1, a: 0.7}
@@ -5525,10 +5603,11 @@ MonoBehaviour:
   comboEdgeOrder: 3
   comboEdgeSizeOffset: 10
   comboEdgeThickness: 0.02
-  comboEdgeColor: {r: 0, g: 0, b: 1, a: 1}
+  comboEdgeColor: {r: 0, g: 0.3921569, b: 1, a: 1}
+  comboTextFont: {fileID: 11400000, guid: de20256c040238d4583a9d0e5c81e975, type: 2}
   comboTextFontSize: 52
-  comboTextYOffset: 60
-  comboTextOutlineWidth: 0.5
+  comboTextYOffset: 0
+  comboTextOutlineWidth: 0.25
   persistProgress: 1
   clearSaveOnNextPlay: 0
   tileFlightDuration: 1.2
@@ -6330,10 +6409,10 @@ MonoBehaviour:
   m_fontAsset: {fileID: 11400000, guid: 3c97ce87489fe5c4bb109deafb21a8c2, type: 2}
   m_sharedMaterial: {fileID: 2092297998}
   m_fontSharedMaterials:
-  - {fileID: 1022131559}
+  - {fileID: 2092297998}
   m_fontMaterial: {fileID: 2092297998}
   m_fontMaterials:
-  - {fileID: 1022131559}
+  - {fileID: 2092297998}
   m_fontColor32:
     serializedVersion: 2
     rgba: 4294967295
@@ -7585,74 +7664,6 @@ MonoBehaviour:
   cheatShowLetters: 1
   cellCoinCount: 3
   coinSizeFraction: 0.8
---- !u!21 &2030551345
-Material:
-  serializedVersion: 8
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_Name: LiberationSans SDF Material (Instance)
-  m_Shader: {fileID: 4800000, guid: fe393ace9b354375a9cb14cdbbc28be4, type: 3}
-  m_Parent: {fileID: 0}
-  m_ModifiedSerializedProperties: 0
-  m_ValidKeywords:
-  - OUTLINE_ON
-  m_InvalidKeywords: []
-  m_LightmapFlags: 1
-  m_EnableInstancingVariants: 0
-  m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
-  stringTagMap: {}
-  disabledShaderPasses: []
-  m_LockedProperties: 
-  m_SavedProperties:
-    serializedVersion: 3
-    m_TexEnvs:
-    - _MainTex:
-        m_Texture: {fileID: 28684132378477856, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    m_Ints: []
-    m_Floats:
-    - _ColorMask: 15
-    - _CullMode: 0
-    - _FaceDilate: 0
-    - _GradientScale: 10
-    - _MaskSoftnessX: 0
-    - _MaskSoftnessY: 0
-    - _OutlineSoftness: 0
-    - _OutlineWidth: 0.25
-    - _PerspectiveFilter: 0.875
-    - _ScaleRatioA: 0.9
-    - _ScaleRatioB: 1
-    - _ScaleRatioC: 0.73125
-    - _ScaleX: 1
-    - _ScaleY: 1
-    - _ShaderFlags: 0
-    - _Sharpness: 0
-    - _Stencil: 0
-    - _StencilComp: 8
-    - _StencilOp: 0
-    - _StencilReadMask: 255
-    - _StencilWriteMask: 255
-    - _TextureHeight: 1024
-    - _TextureWidth: 1024
-    - _UnderlayDilate: 0
-    - _UnderlayOffsetX: 0
-    - _UnderlayOffsetY: 0
-    - _UnderlaySoftness: 0
-    - _VertexOffsetX: 0
-    - _VertexOffsetY: 0
-    - _WeightBold: 0.75
-    - _WeightNormal: 0
-    m_Colors:
-    - _ClipRect: {r: -32767, g: -32767, b: 32767, a: 32767}
-    - _FaceColor: {r: 1, g: 1, b: 1, a: 1}
-    - _OutlineColor: {r: 0, g: 0, b: 0, a: 1}
-    - _UnderlayColor: {r: 0, g: 0, b: 0, a: 0.5}
-  m_BuildTextureStacks: []
-  m_AllowLocking: 1
 --- !u!1 &2068481389
 GameObject:
   m_ObjectHideFlags: 0

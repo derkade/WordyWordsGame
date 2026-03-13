@@ -35,8 +35,10 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float comboFuseSpeedVariance = 0.4f;
     [Tooltip("Lifetime randomization (0 = uniform, 1 = full range)")]
     [SerializeField] private float comboFuseLifetimeVariance = 0.4f;
-    [Tooltip("Pixel offset to nudge the fuse spark emission point (X, Y)")]
-    [SerializeField] private Vector2 comboFuseOffset = Vector2.zero;
+    [Tooltip("Radial offset in pixels (positive = outward, negative = inward from ring edge)")]
+    [SerializeField] private float comboFuseRadialOffset = 0f;
+    [Tooltip("Angular offset in degrees (positive = ahead of fill edge, negative = behind)")]
+    [SerializeField] private float comboFuseAngularOffset = 0f;
 
     [Header("Level Data")]
     [Tooltip("Generate random puzzles instead of using pre-baked levels")]
@@ -150,16 +152,14 @@ public class GameManager : MonoBehaviour
     [Header("Combo System")]
     [Tooltip("Time window to chain words for combo")]
     [SerializeField] private float comboTimeWindow = 12f;
-    [Tooltip("Combo level that triggers the surge auto-reveal")]
-    [SerializeField] private int maxComboLevel = 5;
-    [Tooltip("Color of the combo ring at each level (index 0 = x1)")]
+    [Tooltip("Color of the combo ring at each level (index 0 = x1, wraps if combo exceeds array length)")]
     [SerializeField] private Color[] comboColors = new Color[]
     {
         new Color(0.2f, 0.5f, 1f, 0.4f),   // x1: dim blue
         new Color(0.2f, 0.6f, 1f, 0.7f),   // x2: blue
         new Color(0.1f, 0.7f, 1f, 0.85f),  // x3: bright blue
         new Color(0.3f, 0.5f, 1f, 0.95f),  // x4: intense blue
-        new Color(0.5f, 0.3f, 1f, 1f),     // x5: blue-purple (surge!)
+        new Color(0.5f, 0.3f, 1f, 1f),     // x5: blue-purple
     };
 
     [Header("Combo Fire Ring - Additive (glow, behind wheel)")]
@@ -216,11 +216,13 @@ public class GameManager : MonoBehaviour
 
 
     [Header("Combo Text")]
+    [Tooltip("Font asset for combo text (assign same font as HUD text, e.g. Poppins-Bold SDF)")]
+    [SerializeField] private TMP_FontAsset comboTextFont;
     [Tooltip("Font size for the combo multiplier text")]
-    [SerializeField] private float comboTextFontSize = 52f;
-    [Tooltip("Y offset above the wheel center")]
-    [SerializeField] private float comboTextYOffset = 60f;
-    [SerializeField] private float comboTextOutlineWidth = 0.5f;
+    [SerializeField] private float comboTextFontSize = 45f;
+    [Tooltip("Y offset to nudge text position (0 = halfway between shuffle and top tile)")]
+    [SerializeField] private float comboTextYOffset = 0f;
+    [SerializeField] private float comboTextOutlineWidth = 0.25f;
 
     [Header("Persistence")]
     [Tooltip("Save/restore level and coins across sessions (enable for builds)")]
@@ -268,12 +270,19 @@ public class GameManager : MonoBehaviour
     private Image comboFireSolid;     // solid fire behind wheel (same shape, normal blend)
     private Material comboFireSolidMat;
     private Image comboRingEdge;      // thin solid line on top of wheel
+    private Material comboEdgeMat;
     private TMP_Text comboCountText;
+    private float baseFireSize;
+    private float baseFireSolidSize;
+    private float baseEdgeSize;
 
     // Fuse spark system
     private List<FuseParticle> fuseParticles = new List<FuseParticle>();
     private List<RectTransform> fusePool = new List<RectTransform>();
     private float fuseEmitAccum;
+    private float comboRefillFrom;       // fill value when refill starts (-1 = not refilling)
+    private float comboRefillTimer;
+    private const float comboRefillDuration = 0.25f;
     private Sprite fuseSpark;
     private Material fuseGlowMat;
     private Transform fuseContainer;
@@ -355,6 +364,10 @@ public class GameManager : MonoBehaviour
             LoadLevel(currentLevelIndex);
         }
 
+        // Hide wheel until alignment settles so it doesn't flash at the wrong position
+        if (wheelAreaRT != null)
+            wheelAreaRT.gameObject.SetActive(false);
+
         // Align wheel center to button bar center after layout settles
         StartCoroutine(AlignWheelToButtons());
     }
@@ -368,6 +381,8 @@ public class GameManager : MonoBehaviour
             pos.x = buttonBarRT.position.x;
             wheelAreaRT.position = pos;
         }
+        if (wheelAreaRT != null)
+            wheelAreaRT.gameObject.SetActive(true);
     }
 
     private void OnDestroy()
@@ -400,18 +415,38 @@ public class GameManager : MonoBehaviour
         // Tick combo timer
         if (comboTimer > 0f)
         {
-            comboTimer -= Time.deltaTime;
-            float fill = Mathf.Clamp01(comboTimer / comboTimeWindow);
+            float fill;
+
+            // Refill animation: quickly sweep from old fill up to 1.0
+            if (comboRefillFrom >= 0f)
+            {
+                comboRefillTimer += Time.deltaTime;
+                float t = Mathf.Clamp01(comboRefillTimer / comboRefillDuration);
+                float eased = 1f - (1f - t) * (1f - t); // ease-out quad
+                fill = Mathf.Lerp(comboRefillFrom, 1f, eased);
+
+                if (t >= 1f)
+                    comboRefillFrom = -1f; // done refilling, resume normal drain
+            }
+            else
+            {
+                comboTimer -= Time.deltaTime;
+                fill = Mathf.Clamp01(comboTimer / comboTimeWindow);
+
+                if (comboTimer <= 0f)
+                {
+                    ResetCombo();
+                    fill = 0f;
+                }
+            }
+
             if (comboFireMat != null) comboFireMat.SetFloat("_FillAmount", fill);
             if (comboFireSolidMat != null) comboFireSolidMat.SetFloat("_FillAmount", fill);
-            if (comboRingEdge != null) comboRingEdge.fillAmount = fill;
+            if (comboEdgeMat != null) comboEdgeMat.SetFloat("_FillAmount", fill);
 
             // Emit fuse sparks at the fill edge
             if (comboFuseEnabled && fuseContainer != null && comboRingEdge != null)
                 EmitFuseSparks(fill);
-
-            if (comboTimer <= 0f)
-                ResetCombo();
         }
 
         // Update fuse particles
@@ -1409,21 +1444,25 @@ public class GameManager : MonoBehaviour
 
         }
 
-        // Thin solid edge ring on top of wheel (no custom shader, just hard sprite + default UI)
+        // Thin solid edge ring on top of wheel — shader-based fill with soft edges
         if (comboRingEdge == null)
         {
             var edgeGO = new GameObject("ComboRingEdge", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
             edgeGO.transform.SetParent(wheelParent, false);
 
             comboRingEdge = edgeGO.GetComponent<Image>();
-            comboRingEdge.sprite = GenerateHardRingSprite(256, comboEdgeThickness);
-            comboRingEdge.type = Image.Type.Filled;
-            comboRingEdge.fillMethod = Image.FillMethod.Radial360;
-            comboRingEdge.fillOrigin = (int)Image.Origin360.Top;
-            comboRingEdge.fillClockwise = true;
-            comboRingEdge.fillAmount = 0f;
+            comboRingEdge.sprite = null;
             comboRingEdge.raycastTarget = false;
 
+            var edgeShader = Shader.Find("UI/EdgeRing");
+            if (edgeShader != null)
+            {
+                comboEdgeMat = new Material(edgeShader);
+                comboEdgeMat.SetFloat("_FillAmount", 0f);
+                comboEdgeMat.SetFloat("_RingRadius", 0.49f - comboEdgeThickness * 0.5f);
+                comboEdgeMat.SetFloat("_RingWidth", comboEdgeThickness);
+                comboRingEdge.material = comboEdgeMat;
+            }
         }
 
         if (comboCountText == null)
@@ -1432,34 +1471,41 @@ public class GameManager : MonoBehaviour
             textGO.transform.SetParent(wheelParent, false);
 
             comboCountText = textGO.AddComponent<TextMeshProUGUI>();
+            if (comboTextFont != null)
+                comboCountText.font = comboTextFont;
             comboCountText.fontSize = comboTextFontSize;
             comboCountText.fontStyle = FontStyles.Bold;
             comboCountText.alignment = TextAlignmentOptions.Center;
             comboCountText.color = Color.white;
-            comboCountText.outlineWidth = comboTextOutlineWidth;
-            comboCountText.outlineColor = new Color32(0, 0, 0, 255);
             comboCountText.raycastTarget = false;
+            comboCountText.textWrappingMode = TextWrappingModes.NoWrap;
+            comboCountText.overflowMode = TextOverflowModes.Overflow;
             comboCountText.text = "";
+
+            // Enable outline on the material instance (must be after font assignment)
+            comboCountText.fontMaterial.EnableKeyword("OUTLINE_ON");
+            comboCountText.fontMaterial.SetFloat(ShaderUtilities.ID_OutlineWidth, comboTextOutlineWidth);
+            comboCountText.fontMaterial.SetColor(ShaderUtilities.ID_OutlineColor, new Color32(38, 38, 38, 217));
         }
 
         // Size rings and apply enable toggles
-        float fireSize = letterWheel.WheelBackgroundSize + comboFireSizeOffset;
-        comboFireRing.rectTransform.sizeDelta = new Vector2(fireSize, fireSize);
+        baseFireSize = letterWheel.WheelBackgroundSize + comboFireSizeOffset;
+        comboFireRing.rectTransform.sizeDelta = new Vector2(baseFireSize, baseFireSize);
         comboFireRing.rectTransform.anchoredPosition = Vector2.zero;
         comboFireRing.enabled = false;
 
-        float fireSolidSize = letterWheel.WheelBackgroundSize + comboFireSolidSizeOffset;
-        comboFireSolid.rectTransform.sizeDelta = new Vector2(fireSolidSize, fireSolidSize);
+        baseFireSolidSize = letterWheel.WheelBackgroundSize + comboFireSolidSizeOffset;
+        comboFireSolid.rectTransform.sizeDelta = new Vector2(baseFireSolidSize, baseFireSolidSize);
         comboFireSolid.rectTransform.anchoredPosition = Vector2.zero;
         comboFireSolid.enabled = false;
 
-        float edgeSize = letterWheel.WheelBackgroundSize + comboEdgeSizeOffset;
-        comboRingEdge.rectTransform.sizeDelta = new Vector2(edgeSize, edgeSize);
+        baseEdgeSize = letterWheel.WheelBackgroundSize + comboEdgeSizeOffset;
+        comboRingEdge.rectTransform.sizeDelta = new Vector2(baseEdgeSize, baseEdgeSize);
         comboRingEdge.rectTransform.anchoredPosition = Vector2.zero;
         comboRingEdge.enabled = false;
 
-        // Position text above the wheel
-        float textY = letterWheel.WheelBackgroundSize * 0.5f + comboTextYOffset;
+        // Position text inside wheel: halfway between shuffle button (center) and 12 o'clock tile
+        float textY = letterWheel.WheelRadius * 0.5f + comboTextYOffset;
         comboCountText.rectTransform.sizeDelta = new Vector2(200f, 70f);
         comboCountText.rectTransform.anchoredPosition = new Vector2(0f, textY);
 
@@ -1542,6 +1588,10 @@ public class GameManager : MonoBehaviour
     private void IncrementCombo()
     {
         comboCount++;
+
+        // Capture current fill for refill animation, then reset timer
+        comboRefillFrom = (comboTimer > 0f) ? Mathf.Clamp01(comboTimer / comboTimeWindow) : 0f;
+        comboRefillTimer = 0f;
         comboTimer = comboTimeWindow;
 
         {
@@ -1549,20 +1599,15 @@ public class GameManager : MonoBehaviour
             {
                 comboFireRing.enabled = true;
                 comboFireRing.color = comboFireColor;
-                if (comboFireMat != null)
-                    comboFireMat.SetFloat("_FillAmount", 1f);
             }
             if (comboFireSolidEnabled && comboFireSolid != null)
             {
                 comboFireSolid.enabled = true;
                 comboFireSolid.color = comboFireSolidColor;
-                if (comboFireSolidMat != null)
-                    comboFireSolidMat.SetFloat("_FillAmount", 1f);
             }
             if (comboEdgeEnabled && comboRingEdge != null)
             {
                 comboRingEdge.enabled = true;
-                comboRingEdge.fillAmount = 1f;
                 comboRingEdge.color = comboEdgeColor;
             }
         }
@@ -1578,22 +1623,24 @@ public class GameManager : MonoBehaviour
             StartCoroutine(TweenHelper.PunchScale(comboCountText.transform, Vector3.one * 0.4f, 0.3f));
         }
 
+        // Fire rings at 75% of full size, constant across all combo levels
+        float comboScale = 0.5f;
+        ApplyComboRingScale(comboScale);
+
         // Pulse the wheel on each combo increment
         letterWheel.transform.localScale = Vector3.one;
         float pulseIntensity = 0.03f + comboCount * 0.02f;
         StartCoroutine(TweenHelper.PunchScale(letterWheel.transform, Vector3.one * pulseIntensity, 0.25f));
-
-        if (comboCount >= maxComboLevel)
-            StartCoroutine(ComboSurge());
     }
 
     private void ResetCombo()
     {
         comboCount = 0;
         comboTimer = 0f;
+        comboRefillFrom = -1f;
         if (comboFireMat != null) comboFireMat.SetFloat("_FillAmount", -0.1f);
         if (comboFireSolidMat != null) comboFireSolidMat.SetFloat("_FillAmount", -0.1f);
-        if (comboRingEdge != null) comboRingEdge.fillAmount = 0f;
+        if (comboEdgeMat != null) comboEdgeMat.SetFloat("_FillAmount", 0f);
         if (comboCountText != null)
             comboCountText.text = "";
         fuseEmitAccum = 0f;
@@ -1613,21 +1660,21 @@ public class GameManager : MonoBehaviour
 
     private void SpawnFuseSpark(float fill)
     {
-        // fillClockwise=true draws filled portion CW from top, so the edge
-        // moves CCW as fill decreases. Edge is at fill*360 degrees CW from top.
-        // Math angle: 90 (top) minus CW degrees
-        float angleDeg = fill * 360f;
-        float angleRad = (90f - angleDeg) * Mathf.Deg2Rad;
+        // fillClockwise=false draws filled portion CCW from top, so the edge
+        // moves CW as fill decreases. Edge is at fill*360 degrees CCW from top.
+        // Math angle: 90 (top) plus CCW degrees, plus angular nudge
+        float angleDeg = fill * 360f + comboFuseAngularOffset;
+        float angleRad = (90f + angleDeg) * Mathf.Deg2Rad;
 
-        // Position on the edge ring radius
+        // Position on the edge ring radius + radial offset
         float edgeSize = comboRingEdge.rectTransform.sizeDelta.x;
-        float ringPixelRadius = edgeSize * 0.49f; // match GenerateHardRingSprite outer radius
+        float ringPixelRadius = edgeSize * 0.49f + comboFuseRadialOffset;
         float px = Mathf.Cos(angleRad) * ringPixelRadius;
         float py = Mathf.Sin(angleRad) * ringPixelRadius;
 
         RectTransform rt = GetOrCreateFuseSpark();
         rt.gameObject.SetActive(true);
-        rt.anchoredPosition = new Vector2(px, py) + comboFuseOffset;
+        rt.anchoredPosition = new Vector2(px, py);
         rt.sizeDelta = new Vector2(comboFuseSize, comboFuseSize);
         rt.localScale = Vector3.one;
 
@@ -1732,44 +1779,20 @@ public class GameManager : MonoBehaviour
         return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f));
     }
 
-    private IEnumerator ComboSurge()
+    private void ApplyComboRingScale(float scale)
     {
-        // Brief dramatic pause
-        yield return new WaitForSeconds(1.2f);
-
-        string surgeWord = crosswordGrid.GetLongestUnrevealedWord();
-        if (surgeWord == null)
+        // Scale only flame ring layers (not edge ring — it covers the wheel edge)
+        float wheelSize = letterWheel.WheelBackgroundSize;
+        if (comboFireRing != null)
         {
-            ResetCombo();
-            yield break;
+            float s = Mathf.Lerp(wheelSize, baseFireSize, scale);
+            comboFireRing.rectTransform.sizeDelta = new Vector2(s, s);
         }
-
-        // Big VFX: wheel scale pulse + grid shake
-        letterWheel.transform.localScale = Vector3.one;
-        StartCoroutine(TweenHelper.PunchScale(letterWheel.transform, Vector3.one * 0.2f, 0.5f));
-        StartCoroutine(TweenHelper.ShakePosition(crosswordGrid.GetComponent<RectTransform>(), 15f, 0.4f));
-
-        // Flash "SURGE!" text
-        if (comboCountText != null)
+        if (comboFireSolid != null)
         {
-            comboCountText.text = "SURGE!";
-            comboCountText.fontSize = comboTextFontSize * 1.15f;
-            comboCountText.color = new Color(0.5f, 0.3f, 1f, 1f);
-            StartCoroutine(TweenHelper.PunchScale(comboCountText.transform, Vector3.one * 0.5f, 0.4f));
+            float s = Mathf.Lerp(wheelSize, baseFireSolidSize, scale);
+            comboFireSolid.rectTransform.sizeDelta = new Vector2(s, s);
         }
-
-        yield return new WaitForSeconds(0.6f);
-
-        // Auto-reveal the longest unfound word
-        swipeController.MarkWordAsFound(surgeWord);
-        crosswordGrid.MarkWordRevealed(surgeWord);
-        StartCoroutine(WordRevealSequence(surgeWord));
-
-        // Reset combo text after surge VFX starts
-        yield return new WaitForSeconds(0.5f);
-        if (comboCountText != null)
-            comboCountText.fontSize = comboTextFontSize;
-        ResetCombo();
     }
 
     /// <summary>Solid ring sprite with hard edges (1px AA). No noise, no gradient, alpha=1 everywhere inside.</summary>

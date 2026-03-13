@@ -1,0 +1,17 @@
+fileFormatVersion: 2
+guid: ae3cbf0ccd241d347bf551352e1546cb
+timeCreated: 1525035018
+licenseType: Store
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 252906
+  packageName: Winter Parallax Landscape
+  packageVersion: 1.0
+  assetPath: Assets/Parallax Winter Landscape/Assets/Materials/mat_snowflakes.mat
+  uploadId: 578480

@@ -70,6 +70,8 @@ public class LetterWheel : MonoBehaviour
 
     /// <summary>Expanded size of the wheel background (including shadow expand), set after BuildWheel.</summary>
     public float WheelBackgroundSize { get; private set; }
+    /// <summary>Radius at which letter tiles are placed.</summary>
+    public float WheelRadius => wheelRadius;
     /// <summary>The wheel background transform, used for sibling ordering.</summary>
     public Transform WheelBackground => wheelBackground != null ? wheelBackground.transform : null;
 
