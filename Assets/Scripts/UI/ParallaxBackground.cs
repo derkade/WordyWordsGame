@@ -88,12 +88,12 @@ public class ParallaxBackground : MonoBehaviour
 
     private void Awake()
     {
-        // Render parallax background behind the main UI canvas
+        // Parent canvas just needs overrideSorting so children can have their own sort orders
         var subCanvas = gameObject.GetComponent<Canvas>();
         if (subCanvas == null)
             subCanvas = gameObject.AddComponent<Canvas>();
         subCanvas.overrideSorting = true;
-        subCanvas.sortingOrder = -10;
+        subCanvas.sortingOrder = -30;
 
         if (themes != null && themes.Length > 0)
             ApplyRandomTheme();
@@ -229,6 +229,12 @@ public class ParallaxBackground : MonoBehaviour
             var containerGO = new GameObject($"ParallaxContainer_{i}");
             containerGO.transform.SetParent(parentRT, false);
             RectTransform containerRT = containerGO.AddComponent<RectTransform>();
+
+            // Each layer gets its own sorting order so particles can interleave
+            // Layers spaced by 2: -20, -18, -16, ... leaving odd numbers for particles
+            var layerCanvas = containerGO.AddComponent<Canvas>();
+            layerCanvas.overrideSorting = true;
+            layerCanvas.sortingOrder = -20 + i * 2;
 
             if (layer.scrollMode == ScrollMode.OvalDrift)
             {
@@ -529,13 +535,27 @@ public class ParallaxBackground : MonoBehaviour
 
         float halfH = cam.orthographicSize;
 
-        // 3 depth layers: BG (small/slow), MG (medium), FG (large/fast)
-        // sortingOrder between parallax BG (-10) and main UI (0)
-        var layerConfigs = new (string name, int sortingOrder, float scale, float rateMultiplier)[]
+        // The prefab was designed for a 3D demo scene and has:
+        //   startLifetime=4s, startSpeed=0, gravity=0.07-0.1, maxNumParticles=50
+        // This is far too short/slow for our 2D ortho camera (~10 units tall screen).
+        // We override lifetime, gravity, maxParticles, and size curves per layer.
+        float screenH = halfH * 2f;
+        float screenWidth = halfH * cam.aspect * 2f;
+        float emitterWidth = screenWidth + 60f;
+
+        // 3 depth layers interleaved with parallax layers via sortingOrder.
+        // Parallax layers use sortingOrders -20,-18,-16,-14,-12,-10,-8,-6 (8 layers).
+        // Particles sit between them:
+        //   BG particles (-15): behind layer 3 (closer mountains), in front of layer 2 (distant mountains)
+        //   MG particles (-9):  behind layer 6 (close midground), in front of layer 5 (midground trees)
+        //   FG particles (-3):  in front of all parallax layers
+        var layerConfigs = new (string name, int sortingOrder, float scale, float rate,
+            float lifetime, float gravity, float shrinkAt)[]
         {
-            ("ThemeParticles_BG", -8, 0.5f, 2.5f),
-            ("ThemeParticles_MG", -5, 0.75f, 1.6f),
-            ("ThemeParticles_FG", -2, 1.0f, 1.0f),
+            //                                           size  emit  life  grav   shrink@
+            ("ThemeParticles_BG", -15, 0.5f,             15f,  10f, 0.06f, 0.75f),
+            ("ThemeParticles_MG",  -9, 0.75f,            12f,  10f, 0.10f, 0.85f),
+            ("ThemeParticles_FG",  -3, 1.0f,             10f,  12f, 0.14f, -1f), // -1 = no shrink
         };
 
         activeParticleInstances = new GameObject[layerConfigs.Length];
@@ -551,25 +571,41 @@ public class ParallaxBackground : MonoBehaviour
             if (ps != null)
             {
                 var main = ps.main;
+                // Override lifetime and gravity for our screen scale
+                main.startLifetime = new ParticleSystem.MinMaxCurve(cfg.lifetime * 0.8f, cfg.lifetime);
+                main.gravityModifier = new ParticleSystem.MinMaxCurve(cfg.gravity * 0.8f, cfg.gravity);
+                main.maxParticles = 500;
                 // Scale particle size by depth layer
                 main.startSize = new ParticleSystem.MinMaxCurve(
                     main.startSize.constantMin * cfg.scale,
                     main.startSize.constantMax * cfg.scale);
+                // Size over lifetime: FG = no shrink, others shrink late
+                var sol = ps.sizeOverLifetime;
+                if (cfg.shrinkAt < 0f)
+                {
+                    sol.enabled = false;
+                }
+                else
+                {
+                    sol.enabled = true;
+                    sol.size = new ParticleSystem.MinMaxCurve(1f, new AnimationCurve(
+                        new Keyframe(0f, 1f, 0f, 0f),
+                        new Keyframe(cfg.shrinkAt, 1f, 0f, 0f),
+                        new Keyframe(1f, 0f, -2f, 0f)
+                    ));
+                }
                 // Widen emitter to cover screen + horizontal drift margin
-                float screenWidth = cam.orthographicSize * cam.aspect * 2f;
-                float emitterWidth = screenWidth + 60f;
                 var shape = ps.shape;
-                float originalWidth = shape.enabled ? shape.scale.x : 20f;
                 if (shape.enabled)
                 {
                     var s = shape.scale;
                     s.x = emitterWidth;
                     shape.scale = s;
                 }
-                // Scale emission rate: compensate for wider emitter + density multiplier
-                float widthCompensation = emitterWidth / originalWidth;
+                // Emission rate scaled for wider emitter
+                float widthCompensation = emitterWidth / 20f; // prefab default is 20 units
                 var emission = ps.emission;
-                emission.rateOverTime = emission.rateOverTime.constant * cfg.rateMultiplier * widthCompensation;
+                emission.rateOverTime = cfg.rate * widthCompensation;
                 // Flip horizontal drift to match parallax scroll direction
                 go.transform.localScale = new Vector3(scrollDirection, 1f, 1f);
             }

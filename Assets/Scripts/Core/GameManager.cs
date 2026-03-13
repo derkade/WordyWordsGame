@@ -548,9 +548,9 @@ public class GameManager : MonoBehaviour
         var alreadyRevealed = crosswordGrid.GetWordCellRevealedStates(word);
 
         Vector3 wheelCenter = letterWheel.transform.position;
-        Canvas canvas = GetComponentInParent<Canvas>();
+        Canvas canvas = crosswordGrid.GetComponentInParent<Canvas>();
         if (canvas == null) canvas = FindAnyObjectByType<Canvas>();
-        Transform canvasTransform = canvas.transform;
+        Transform canvasTransform = canvas.rootCanvas.transform;
 
         float cellSize = crosswordGrid.GetCellSize();
 
