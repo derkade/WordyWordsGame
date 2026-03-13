@@ -52,7 +52,7 @@ public static class SetupWinterTheme
             return;
         }
 
-        string basePath = "Assets/Parallax Winter Landscape/Assets/Sprites/2048x1536/";
+        string basePath = "Assets/Art/Backgrounds/Winter/";
 
         // Define layers: file, scrollSpeed, alpha, verticalAnchor, verticalOffset
         // Back to front: BG3 (sky) → clouds → BG2 → BG1 → MG3 → MG2 → MG1 → FG
@@ -60,14 +60,14 @@ public static class SetupWinterTheme
         // without distortion (Stretch) or full-height tiling (FillHeight)
         var layerDefs = new (string file, float speed, float alpha, ParallaxBackground.VerticalAnchor anchor, float vOffset)[]
         {
-            ("layer7_BG3.png",  0.000f, 1.0f, ParallaxBackground.VerticalAnchor.Stretch,     0.00f),
-            ("BG_clouds.png",   0.002f, 0.8f, ParallaxBackground.VerticalAnchor.Top,          0.00f),
-            ("layer6_BG2.png",  0.004f, 1.0f, ParallaxBackground.VerticalAnchor.Bottom,       0.15f),  // distant mountains up
-            ("layer5_BG1.png",  0.006f, 1.0f, ParallaxBackground.VerticalAnchor.Bottom,       0.12f),  // closer mountains up
-            ("layer4_MG3.png",  0.010f, 1.0f, ParallaxBackground.VerticalAnchor.Bottom,       0.08f),  // distant treeline up
-            ("layer3_MG2.png",  0.014f, 1.0f, ParallaxBackground.VerticalAnchor.Bottom,       0.05f),  // midground trees slight up
-            ("layer2_MG1.png",  0.019f, 1.0f, ParallaxBackground.VerticalAnchor.FillHeight,   0.00f),
-            ("layer1_FG.png",   0.024f, 1.0f, ParallaxBackground.VerticalAnchor.FillHeight,   0.00f),
+            ("layer7_BG3_4k.png",  0.000f, 1.0f, ParallaxBackground.VerticalAnchor.Stretch,     0.00f),
+            ("BG_clouds_4k.png",   0.002f, 0.8f, ParallaxBackground.VerticalAnchor.Top,          0.00f),
+            ("layer6_BG2_4k.png",  0.004f, 1.0f, ParallaxBackground.VerticalAnchor.Bottom,       0.15f),  // distant mountains up
+            ("layer5_BG1_4k.png",  0.006f, 1.0f, ParallaxBackground.VerticalAnchor.Bottom,       0.12f),  // closer mountains up
+            ("layer4_MG3_4k.png",  0.010f, 1.0f, ParallaxBackground.VerticalAnchor.Bottom,       0.08f),  // distant treeline up
+            ("layer3_MG2_4k.png",  0.014f, 1.0f, ParallaxBackground.VerticalAnchor.Bottom,       0.05f),  // midground trees slight up
+            ("layer2_MG1_4k.png",  0.019f, 1.0f, ParallaxBackground.VerticalAnchor.FillHeight,   0.00f),
+            ("layer1_FG_4k.png",   0.024f, 1.0f, ParallaxBackground.VerticalAnchor.FillHeight,   0.00f),
         };
 
         var layers = new ParallaxBackground.ParallaxLayer[layerDefs.Length];
@@ -102,7 +102,7 @@ public static class SetupWinterTheme
 
         // Assign snow particle prefab
         var snowPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(
-            "Assets/Parallax Winter Landscape/Assets/Prefabs/FX SnowFlakes.prefab");
+            "Assets/Art/Backgrounds/Winter/VFX/FX SnowFlakes.prefab");
         if (snowPrefab != null)
             themes[winterIdx].particlePrefab = snowPrefab;
         else
