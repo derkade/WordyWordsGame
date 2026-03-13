@@ -14,17 +14,15 @@ public static class SetupParallaxLayers
         ParallaxBackground.VerticalAnchor.Bottom
     };
 
-    private static readonly string[] themeNames = { "Jungle", "Desert", "IceAge" };
+    private static readonly string[] themeNames = { "Jungle", "Desert" };
     private static readonly string[] themePaths = {
         "Assets/Art/Backgrounds/Jungle/",
-        "Assets/Art/Backgrounds/Desert/",
-        "Assets/Art/Backgrounds/IceAge/"
+        "Assets/Art/Backgrounds/Desert/"
     };
     // Muted revealed cell colors per theme (dark enough for white text)
     private static readonly Color[] themeRevealedColors = {
         new Color(0.22f, 0.35f, 0.20f, 1f),  // Jungle — dark mossy green
         new Color(0.40f, 0.30f, 0.18f, 1f),  // Desert — dark sandy brown
-        new Color(0.25f, 0.32f, 0.42f, 1f),  // IceAge — dark steel blue
     };
 
     [MenuItem("Tools/Setup All Parallax Themes")]
@@ -88,9 +86,6 @@ public static class SetupParallaxLayers
 
     [MenuItem("Tools/Setup Parallax Desert Layers")]
     public static void SetupDesert() { ApplySingleTheme("Desert", themePaths[1]); }
-
-    [MenuItem("Tools/Setup Parallax IceAge Layers")]
-    public static void SetupIceAge() { ApplySingleTheme("IceAge", themePaths[2]); }
 
     private static void ApplySingleTheme(string themeName, string basePath)
     {

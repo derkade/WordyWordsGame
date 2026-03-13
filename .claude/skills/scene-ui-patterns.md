@@ -76,7 +76,7 @@ UI-space particles, not world-space ParticleSystem. Everything is RectTransform-
 - Solid opaque line with dark outline for visibility against parallax backgrounds
 
 ## Parallax Background System
-- 3 themes: Jungle, Desert, IceAge — randomly selected each level via `ApplyRandomTheme()`
+- Multiple themes: Jungle, Desert, Forest, Winter, etc. — randomly selected each level via `ApplyRandomTheme()`
 - Assets at `Assets/Art/Backgrounds/{theme}/`
 - Editor setup: `Tools/Setup All Parallax Themes`
 

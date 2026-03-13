@@ -18,11 +18,6 @@ public static class SetupType2Themes
                 "Assets/Art/Backgrounds/Desert/type2/clouds.png",
                 "Assets/Art/Backgrounds/Desert/type2/dune.png"
             },
-            new[] {
-                "Assets/Art/Backgrounds/IceAge/type2/bg.png",
-                "Assets/Art/Backgrounds/IceAge/type2/clouds.png",
-                "Assets/Art/Backgrounds/IceAge/type2/mountains.png"
-            }
         };
 
         foreach (var paths in type2Paths)
@@ -66,14 +61,6 @@ public static class SetupType2Themes
                 middleGround = "Assets/Art/Backgrounds/Desert/middle_ground.png",
                 foreground = "Assets/Art/Backgrounds/Desert/foreground.png"
             },
-            new {
-                name = "IceAge2",
-                sky = "Assets/Art/Backgrounds/IceAge/type2/bg.png",
-                clouds = "Assets/Art/Backgrounds/IceAge/type2/clouds.png",
-                mountains = "Assets/Art/Backgrounds/IceAge/type2/mountains.png",
-                middleGround = "Assets/Art/Backgrounds/IceAge/middle_ground.png",
-                foreground = "Assets/Art/Backgrounds/IceAge/foreground.png"
-            }
         };
 
         foreach (var def in themeDefs)
@@ -95,8 +82,7 @@ public static class SetupType2Themes
             theme.FindPropertyRelative("enabled").boolValue = true;
             // Same revealed colors as base themes (Jungle2=Jungle, etc.)
             Color rc = def.name == "Jungle2" ? new Color(0.22f, 0.35f, 0.20f, 1f)
-                      : def.name == "Desert2" ? new Color(0.40f, 0.30f, 0.18f, 1f)
-                      : new Color(0.25f, 0.32f, 0.42f, 1f);
+                      : new Color(0.40f, 0.30f, 0.18f, 1f);
             theme.FindPropertyRelative("revealedCellColor").colorValue = rc;
 
             var layersProp = theme.FindPropertyRelative("layers");
@@ -126,6 +112,6 @@ public static class SetupType2Themes
         UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(
             UnityEngine.SceneManagement.SceneManager.GetActiveScene());
 
-        Debug.Log("Type2 themes (Jungle2, Desert2, IceAge2) added successfully!");
+        Debug.Log("Type2 themes (Jungle2, Desert2) added successfully!");
     }
 }
