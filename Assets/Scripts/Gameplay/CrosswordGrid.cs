@@ -376,7 +376,7 @@ public class CrosswordGrid : MonoBehaviour
         tex.filterMode = FilterMode.Bilinear;
 
         float center = size * 0.5f;
-        float borderW = size * 0.05f;
+        float borderW = size * 0.05f - 1f;
         float outerR = size * 0.45f;
         float coinR = outerR - borderW;
         float innerR = coinR * 0.75f;
@@ -534,6 +534,32 @@ public class CrosswordGrid : MonoBehaviour
     public Color GetCellDefaultColor()
     {
         return cellDefaultColor;
+    }
+
+    /// <summary>
+    /// Creates a UIRoundedRect material for an arbitrary tile size using the same
+    /// shader properties (bevel, gloss, shadow, border) as the grid cells.
+    /// </summary>
+    public Material CreateMaterialForSize(float tileSize)
+    {
+        if (roundedRectMaterial == null)
+        {
+            var shader = Shader.Find("UI/RoundedRect");
+            if (shader != null)
+                roundedRectMaterial = new Material(shader);
+        }
+        if (roundedRectMaterial == null) return null;
+
+        float sExp = Mathf.Max(shadowExpand, 0f);
+        float expanded = tileSize + sExp * 2f;
+        var mat = new Material(roundedRectMaterial);
+        SetSharedMaterialProps(mat, expanded, sExp);
+        mat.SetFloat("_BevelSize", bevelSize);
+        mat.SetFloat("_BevelStrength", bevelStrength);
+        mat.SetFloat("_GlossStrength", glossStrength);
+        mat.SetFloat("_GlossSize", glossSize);
+        mat.SetFloat("_GlossCurve", glossCurve);
+        return mat;
     }
 
     private IEnumerator DelayedPunch(Transform target, float delay)

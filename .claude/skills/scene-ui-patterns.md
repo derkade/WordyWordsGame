@@ -1,7 +1,7 @@
 # Scene & UI Patterns
 
 ## Scene Structure
-Single scene: `SampleScene`. No scene transitions. All gameplay happens here.
+Single scene: `WordyWords`. No scene transitions. All gameplay happens here.
 
 ## UI Panel Pattern
 All overlay panels (level complete, word bank, definition) follow the same show/hide pattern:

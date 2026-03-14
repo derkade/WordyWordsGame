@@ -30,6 +30,19 @@ public class ParallaxBackground : MonoBehaviour
         public bool ovalTileGrid = true;
         [Tooltip("Shift Bottom/Top anchor upward (fraction of screen height). 0.1 = push 10% up.")]
         public float verticalOffset = 0f;
+        [Tooltip("Reverse this layer's scroll direction relative to the others")]
+        public bool reverseDirection = false;
+        [Tooltip("Apply xBR edge-smoothing filter (makes pixel art look smooth/hand-drawn)")]
+        public bool useXBR = false;
+        [Tooltip("xBR filter strength (0 = bilinear, 1 = full xBR smoothing)")]
+        [Range(0f, 1f)]
+        public float xbrStrength = 1f;
+        [Tooltip("Posterize levels (fewer = more vector-like, more = subtler)")]
+        [Range(2f, 32f)]
+        public float xbrPosterLevels = 10f;
+        [Tooltip("Edge anti-alias width (smaller = crisper vector edges, larger = softer)")]
+        [Range(0f, 1f)]
+        public float xbrEdgeWidth = 0.5f;
     }
 
     [System.Serializable]
@@ -43,6 +56,8 @@ public class ParallaxBackground : MonoBehaviour
         public ParallaxLayer[] layers;
         [Tooltip("Optional particle prefab (e.g. snow). Instantiated in world space above the camera.")]
         public GameObject particlePrefab;
+        [Tooltip("Scale all layers uniformly from the tallest layer's height. For panoramic sprite packs where layers have different heights but share the same pixel scale.")]
+        public bool uniformLayerScale;
     }
 
     [Header("Themes (randomly selected each level)")]
@@ -85,6 +100,9 @@ public class ParallaxBackground : MonoBehaviour
     private float sharedOvalAngle;
     private float scrollDirection;  // +1 or -1, randomized each level
     private GameObject[] activeParticleInstances;
+    private bool activeUniformScale;
+    [Header("Filters")]
+    [SerializeField] private Shader xbrShader;
 
     private void Awake()
     {
@@ -139,12 +157,13 @@ public class ParallaxBackground : MonoBehaviour
             if (Mathf.Approximately(speed, 0f)) continue;
 
             RectTransform crt = layerInfo[i].containerRT;
+            float dir = layers[i].reverseDirection ? -scrollDirection : scrollDirection;
 
             if (layers[i].scrollMode == ScrollMode.OvalDrift)
             {
                 // Classic parallax: shared camera angle, scrollSpeed is depth factor
                 // Layers with higher speed move more (closer to camera)
-                float x = layers[i].ovalRadiusX * speed * Mathf.Cos(sharedOvalAngle) * scrollDirection;
+                float x = layers[i].ovalRadiusX * speed * Mathf.Cos(sharedOvalAngle) * dir;
                 float y = layers[i].ovalRadiusY * speed * Mathf.Sin(sharedOvalAngle);
                 crt.anchoredPosition = new Vector2(x, y);
             }
@@ -153,7 +172,7 @@ public class ParallaxBackground : MonoBehaviour
                 Vector2 pos = crt.anchoredPosition;
                 float parentWidth2 = ((RectTransform)crt.parent).rect.width;
 
-                pos.x -= speed * parentWidth2 * Time.deltaTime * scrollDirection;
+                pos.x -= speed * parentWidth2 * Time.deltaTime * dir;
 
                 float wrapDist;
                 if (layerInfo[i].tileWidth > 0)
@@ -218,6 +237,15 @@ public class ParallaxBackground : MonoBehaviour
         float parentWidth = parentRT.rect.width;
         float parentHeight = parentRT.rect.height;
         lastParentHeight = parentHeight;
+
+        // Uniform scale: find tallest layer's texture height as composition reference
+        float uniformRefH = 0f;
+        if (activeUniformScale)
+        {
+            for (int i = 0; i < layers.Length; i++)
+                if (layers[i].sprite != null)
+                    uniformRefH = Mathf.Max(uniformRefH, layers[i].sprite.texture.height);
+        }
 
         for (int i = 0; i < layers.Length; i++)
         {
@@ -344,7 +372,27 @@ public class ParallaxBackground : MonoBehaviour
             else if (layer.verticalAnchor == VerticalAnchor.FillHeight)
             {
                 float spriteAspect = (float)layer.sprite.texture.width / layer.sprite.texture.height;
-                float tileW = parentHeight * spriteAspect;
+
+                // Uniform scale: all layers share pixel scale from the tallest layer
+                // effectiveAspect determines tile width; container height set proportionally
+                float effectiveAspect;
+                if (uniformRefH > 0)
+                {
+                    effectiveAspect = (float)layer.sprite.texture.width / uniformRefH;
+                    float heightFraction = (float)layer.sprite.texture.height / uniformRefH;
+                    containerRT.anchorMin = new Vector2(0f, layer.verticalOffset);
+                    containerRT.anchorMax = new Vector2(1f, heightFraction + layer.verticalOffset);
+                }
+                else
+                {
+                    effectiveAspect = spriteAspect;
+                    containerRT.anchorMin = Vector2.zero;
+                    containerRT.anchorMax = Vector2.one;
+                }
+                containerRT.offsetMin = Vector2.zero;
+                containerRT.offsetMax = Vector2.zero;
+
+                float tileW = parentHeight * effectiveAspect;
 
                 bool hasAlt = layer.alternateSprite != null;
                 int tileCount = hasAlt ? 2 : 1;
@@ -372,7 +420,7 @@ public class ParallaxBackground : MonoBehaviour
                     images = imgs,
                     tileWidth = tileW,
                     tileCount = tileCount,
-                    spriteAspect = spriteAspect
+                    spriteAspect = effectiveAspect
                 };
             }
             else
@@ -422,6 +470,7 @@ public class ParallaxBackground : MonoBehaviour
         img.preserveAspect = false;
         img.color = new Color(1f, 1f, 1f, layer.alpha);
         img.raycastTarget = false;
+        ApplyXBRIfNeeded(img, layer);
     }
 
     // OvalDrift grid tile: explicit position and size, no anchoring
@@ -444,6 +493,7 @@ public class ParallaxBackground : MonoBehaviour
         img.preserveAspect = false;
         img.color = new Color(1f, 1f, 1f, layer.alpha);
         img.raycastTarget = false;
+        ApplyXBRIfNeeded(img, layer);
     }
 
     // Standard anchor-based images (Stretch/Bottom/Top modes)
@@ -464,8 +514,27 @@ public class ParallaxBackground : MonoBehaviour
         img.preserveAspect = false;
         img.color = new Color(1f, 1f, 1f, layer.alpha);
         img.raycastTarget = false;
+        ApplyXBRIfNeeded(img, layer);
 
         return rt;
+    }
+
+    private void ApplyXBRIfNeeded(Image img, ParallaxLayer layer)
+    {
+        if (!layer.useXBR) return;
+
+        if (xbrShader == null)
+        {
+            Debug.LogWarning("ParallaxBackground: xBR shader not assigned. Drag Assets/Shaders/xBRFilter into the Xbr Shader field.");
+            return;
+        }
+
+        var mat = new Material(xbrShader);
+        mat.SetFloat("_Strength", layer.xbrStrength);
+        mat.SetFloat("_PosterLevels", layer.xbrPosterLevels);
+        mat.SetFloat("_EdgeWidth", layer.xbrEdgeWidth);
+        img.material = mat;
+        Debug.Log($"ParallaxBackground: Applied xBR shader to {img.gameObject.name} (strength={layer.xbrStrength}, poster={layer.xbrPosterLevels})");
     }
 
     public void ApplyRandomTheme()
@@ -492,6 +561,7 @@ public class ParallaxBackground : MonoBehaviour
         }
 
         lastThemeIndex = index;
+        activeUniformScale = themes[index].uniformLayerScale;
         SetLayers(themes[index].layers);
         ApplyThemeParticles(themes[index]);
     }
@@ -500,6 +570,7 @@ public class ParallaxBackground : MonoBehaviour
     {
         if (themes == null || index < 0 || index >= themes.Length) return;
         lastThemeIndex = index;
+        activeUniformScale = themes[index].uniformLayerScale;
         SetLayers(themes[index].layers);
         ApplyThemeParticles(themes[index]);
     }

@@ -51,6 +51,7 @@ public class GameManager : MonoBehaviour
     [Header("Grid")]
     [Tooltip("Reference to the CrosswordGrid component that manages the puzzle grid")]
     [SerializeField] private CrosswordGrid crosswordGrid;
+    [SerializeField] private SplashScreen splashScreen;
 
     [Header("Wheel")]
     [Tooltip("Reference to the LetterWheel component that arranges tiles in a circle")]
@@ -122,7 +123,7 @@ public class GameManager : MonoBehaviour
     [Tooltip("Coins awarded for finding a bonus word")]
     [SerializeField] private int coinsPerExtraWord = 10;
     [Tooltip("Coins awarded for collecting a cell coin")]
-    [SerializeField] private int coinsPerCellCoin = 100;
+    [SerializeField] private int coinsPerCellCoin = 200;
     [Tooltip("Streak color for bonus word trails")]
     [SerializeField] private Color bonusStreakColor = new Color(0.3f, 0.6f, 1f, 1f);
 
@@ -151,7 +152,7 @@ public class GameManager : MonoBehaviour
 
     [Header("Combo System")]
     [Tooltip("Time window to chain words for combo")]
-    [SerializeField] private float comboTimeWindow = 12f;
+    [SerializeField] private float comboTimeWindow = 15f;
     [Tooltip("Color of the combo ring at each level (index 0 = x1, wraps if combo exceeds array length)")]
     [SerializeField] private Color[] comboColors = new Color[]
     {
@@ -383,6 +384,10 @@ public class GameManager : MonoBehaviour
         }
         if (wheelAreaRT != null)
             wheelAreaRT.gameObject.SetActive(true);
+
+        // Dismiss splash screen now that the game is fully ready
+        if (splashScreen != null)
+            splashScreen.Hide();
     }
 
     private void OnDestroy()
@@ -516,6 +521,13 @@ public class GameManager : MonoBehaviour
         {
             extraWordsCountText.text = "";
             extraWordsCountText.alpha = 0f;
+            // Match outline to coinText so +N flash looks consistent with score
+            var mat = new Material(extraWordsCountText.fontSharedMaterial);
+            mat.SetColor("_OutlineColor", new Color32(0, 0, 0, 255));
+            mat.SetFloat("_OutlineWidth", 0.5f);
+            mat.SetFloat("_FaceDilate", 0.2f);
+            mat.EnableKeyword("OUTLINE_ON");
+            extraWordsCountText.fontSharedMaterial = mat;
         }
 
         // Hide level complete panel
@@ -1346,11 +1358,12 @@ public class GameManager : MonoBehaviour
 
     private IEnumerator FloatingCoinPop(RectTransform anchor)
     {
-        Canvas canvas = GetComponentInParent<Canvas>();
+        Canvas canvas = crosswordGrid.GetComponentInParent<Canvas>();
         if (canvas == null) canvas = FindAnyObjectByType<Canvas>();
 
         var go = new GameObject("FloatingCoinPop", typeof(RectTransform), typeof(CanvasRenderer));
         go.transform.SetParent(canvas.transform, false);
+        go.transform.SetAsLastSibling();
 
         var tmp = go.AddComponent<TextMeshProUGUI>();
         tmp.text = $"+{coinsPerCellCoin}";
@@ -1358,9 +1371,9 @@ public class GameManager : MonoBehaviour
         tmp.fontStyle = FontStyles.Bold;
         tmp.alignment = TextAlignmentOptions.Center;
         tmp.color = new Color(1f, 0.84f, 0f, 1f);
-        tmp.outlineWidth = 0.25f;
-        tmp.outlineColor = new Color32(0, 0, 0, 180);
         tmp.raycastTarget = false;
+        tmp.outlineWidth = 0.25f;
+        tmp.outlineColor = new Color32(38, 38, 38, 180);
 
         var rt = go.GetComponent<RectTransform>();
         rt.sizeDelta = new Vector2(150f, 60f);

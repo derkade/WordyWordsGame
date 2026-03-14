@@ -110,7 +110,7 @@ mv Assets/Resources/wordlist_filtered.txt Assets/Resources/wordlist.txt
 - `GlowTrail.shader` — Glow effect for swipe trail lines
 
 ## Scene
-- `SampleScene` — Single scene containing all gameplay (grid, wheel, UI panels)
+- `WordyWords` — Single scene containing all gameplay (grid, wheel, UI panels)
 
 ## UI Flow
 1. Level loads → grid builds, wheel populates with shuffled seed letters
